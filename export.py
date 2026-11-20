@@ -204,17 +204,24 @@ def inline_css(input_path, output_path):
         },
         "plugins": [
             "preset-default",
+            # {
+            #     "name": "removeElementsByAttr",
+            #     "params": {
+            #         "id": [],
+            #         "class": [],
+            #     }
+            # },
             "cleanupListOfValues",
             "convertOneStopGradients",
-            "convertStyleToAttrs",
-            "removeDimensions",#
-            "removeOffCanvasPaths",#
+            # "convertStyleToAttrs",
+            "removeDimensions",
+            # "removeOffCanvasPaths",
             "removeRasterImages",
             "removeScripts",
             "removeStyleElement",
             "removeTitle",
             "removeXlink",
-            "reusePaths",#
+            "reusePaths",
         ]
     }
 
@@ -274,6 +281,9 @@ def export_pages(input_path, output_dir):
                 page_name
             )
 
+            if not page_name.startswith("cnc_"):
+                break
+
             temp_svg = tmp_dir / f"page_{page_num}.svg"
 
             output_svg = output_dir / (
@@ -290,6 +300,9 @@ def export_pages(input_path, output_dir):
                     "inkscape",
                     str(input_path),
                     f"--export-page={page_num}",
+                    # "--export-area-page",
+                    # "--export-id=decoupe",
+                    # "--export-id-only",
                     "--export-plain-svg",
                     f"--export-filename={temp_svg}",
                 ],
