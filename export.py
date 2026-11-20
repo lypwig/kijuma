@@ -1,3 +1,4 @@
+#! uv run
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -213,9 +214,6 @@ def inline_css(input_path, output_path):
             # },
             "cleanupListOfValues",
             "convertOneStopGradients",
-            # "convertStyleToAttrs",
-            "removeDimensions",
-            # "removeOffCanvasPaths",
             "removeRasterImages",
             "removeScripts",
             "removeStyleElement",
