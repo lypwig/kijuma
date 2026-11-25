@@ -1,4 +1,7 @@
-from build123d import *
+"""Main entry point to build the model."""
+
 from ocp_viewer import show
 
-show(Box(10, 20, 30))
+from .dial import dial
+
+show(dial(20))
