@@ -7,7 +7,7 @@ from . import values as v
 
 def dial(tab_angle: int) -> BuildPart:
     """Return the dial builder configured for the given tab angle."""
-    with BuildPart() as dial:
+    with BuildPart() as part:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
             Circle(v.dial_diam / 2, -180, None)
@@ -25,4 +25,4 @@ def dial(tab_angle: int) -> BuildPart:
 
         extrude(amount=v.material_thickness)
 
-    return dial
+    return part

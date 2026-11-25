@@ -35,3 +35,7 @@ venv = ".venv"
 
 [tool.ty.environment]
 python = ".venv"
+
+# necessary for sheet metal until 0.14.0 is out
+[tool.uv.sources]
+build123d = { git = "https://github.com/gumyr/build123d.git" }
