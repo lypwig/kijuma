@@ -9,6 +9,7 @@ pkgs.mkShell {
 
   shellHook = ''
     viewer() { uv run python -m ocp_viewer; }
+    watcher()  { uv run python watch.py main.py; }
     linter()  { uv run ruff check && uv run ty check; }
   '';
 }
