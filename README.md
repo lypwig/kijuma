@@ -6,7 +6,7 @@ Module Python basé sur build123d pour réaliser un outil en carton permettant d
 
 Auteur: Nathanaël Jourdane
 
-Licence: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/deed.fr)
+Licence: [MIT](https://mit-license.org/)
 
 ## Développement
 
@@ -21,3 +21,5 @@ Dans un autre terminal, lancez le watcher :
 Dans un autre terminal, vous pouvez lancer le linter :
 
     nix-shell --run linter
+
+Le fichier kijuma.svg correspond à l'ancienne version développée avec Inkscape, que je conserve pour le moment.
