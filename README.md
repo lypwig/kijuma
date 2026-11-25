@@ -2,15 +2,15 @@
 
 **Kit de jugement majoritaire**
 
-Module Python basé sur build123d pour réaliser un outil en carton permettant d'effectuer des scrutins au jugement majoritaire, pour 5 à 40 participant.es avec 1 à 7 propositions.
+Un outil en carton permettant d'effectuer des scrutins au jugement majoritaire, pour 5 à 40 participant.es avec 1 à 7 propositions.
 
-Auteur: Nathanaël Jourdane
+Ce dépôt contient un module Python basé sur build123d permetant de dessiner les pièces à découper.
 
-Licence: [MIT](https://mit-license.org/)
+Le fichier kijuma.svg correspond à l'ancienne version développée avec Inkscape, que je conserve pour le moment.
 
 ## Développement
 
-Lancez le viewer (`http://127.0.0.1:3939/viewer`) :
+Lancez le viewer (qui devrait apparaitre sur `http://127.0.0.1:3939/viewer`) :
 
     nix-shell --run viewer
 
@@ -22,4 +22,8 @@ Dans un autre terminal, vous pouvez lancer le linter :
 
     nix-shell --run linter
 
-Le fichier kijuma.svg correspond à l'ancienne version développée avec Inkscape, que je conserve pour le moment.
+## Paternité
+
+Auteur: Nathanaël Jourdane
+
+Licence: [MIT](https://mit-license.org/)
