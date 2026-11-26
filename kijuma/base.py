@@ -5,9 +5,9 @@ from build123d import *
 from . import values as v
 
 
-def base() -> BuildPart:
+def base() -> Part:
     """Return the base model builder."""
-    with BuildPart() as part:
+    with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=v.material_thickness, bend_radius=2) as sheet:
             with BuildSketch():
                 Rectangle(*v.base_size)
@@ -30,4 +30,6 @@ def base() -> BuildPart:
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
         thicken()
 
+    part = builder.part
+    part.label = "Base"
     return part

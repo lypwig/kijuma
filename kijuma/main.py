@@ -1,11 +1,12 @@
-"""Main entry point to build the model."""
+"""Main entry point to build and animate the model."""
 
-from ocp_viewer import show
+from build123d import *
+from ocp_viewer import Animation, show
 
-from .base import base
-from .dial import dial
+from .assembly import assembly
 
-show(
-    # dial(20),
-    base(),
-)
+show(assembly(tab_angle=20))
+
+anim = Animation()
+anim.add_track("/Assembly/Dial", "ry", [0, 1], [-180, 0])
+anim.animate(1)

@@ -17,6 +17,7 @@ base_size = 210, 210
 
 # Fasteners
 rivet_diam = 5
+rivet_head = 8, 2
 
 # Material
 material_thickness = 1

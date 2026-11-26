@@ -5,9 +5,9 @@ from build123d import *
 from . import values as v
 
 
-def dial(tab_angle: int) -> BuildPart:
+def dial(tab_angle: int) -> Part:
     """Return the dial builder configured for the given tab angle."""
-    with BuildPart() as part:
+    with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
             Circle(v.dial_diam / 2, -180, None)
@@ -25,4 +25,6 @@ def dial(tab_angle: int) -> BuildPart:
 
         extrude(amount=v.material_thickness)
 
+    part = builder.part
+    part.label = "Dial"
     return part
