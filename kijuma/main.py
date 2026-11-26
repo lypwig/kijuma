@@ -2,7 +2,10 @@
 
 from ocp_viewer import show
 
-# from .dial import dial
 from .base import base
+from .dial import dial
 
-show(base())
+show(
+    # dial(20),
+    base(),
+)

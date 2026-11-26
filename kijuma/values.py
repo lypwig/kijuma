@@ -6,11 +6,14 @@ epsilon = 0.01
 disc_diam = 74
 dial_diam = 210
 stop_size = (5, 2)
-stop_loc = (dial_diam / 2 - 5, 0)
+stop_loc = dial_diam / 2 - 5, 0
 tab_size = 5
-window_thickness = 10
-window_start = 45
-window_size = 90
+slot_width = 10
+slot_start = 45
+slot_length = 90
+
+# base
+base_size = 210, 210
 
 # Fasteners
 rivet_diam = 5
