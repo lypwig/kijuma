@@ -29,7 +29,7 @@ base_gap = len(dials) * material_thickness + 1  # espace pour les cadrans + 1 mm
 
 # Fenêtre en arc de cercle du panneau avant, qui laisse voir les bouts des languettes
 base_view_width = 10  # largeur de la fenêtre
-base_view_angle = (len(dials) - 1) * tab_step + 10  # angle couvert depuis le bord gauche
+base_view_angle = len(dials) * tab_step  # angle couvert depuis le bord gauche
 
 # Languette pliée depuis le panneau venant traverser une fenêtre du panneau arrière
 base_strip_width = 20  # largeur de la base de la languette
