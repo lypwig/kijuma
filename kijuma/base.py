@@ -8,12 +8,18 @@ from . import values as v
 def base() -> Part:
     """Return the base model part."""
     thickness, radius = v.material_thickness, v.bend_radius
+    # Flat length added between the two bends of the fold, to space the two sheets
+    spacing = v.sheet_gap - 2 * radius
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch():
                 Rectangle(*v.base_size)
-            flange(sheet.rims().group_by(Axis.Y)[0], angle=-180, length=v.base_size[1])
+            bottom = sheet.rims().group_by(Axis.Y)[0]
+            if spacing:  # two folds of 90° with a flat wall between them
+                flange(bottom, angle=-90, length=spacing)
+                bottom = sheet.rims().filter_by(Axis.X).sort_by(Axis.Z)[0]
+                flange(bottom, angle=-90, length=v.base_size[1])
 
             with BuildSketch(mode=Mode.SUBTRACT):
                 align = (Align.CENTER, Align.MIN)
@@ -39,7 +45,7 @@ def base() -> Part:
             # Strip folded backwards from the bottom of the notch.
             # Its head stops against the back sheet, its neck goes through the window.
             edge = sheet.rims().filter_by(Axis.X).sort_by_distance((*notch_pos, 0))[0]
-            flange(edge, radius, -90)
+            flange(edge, radius + spacing, -90)
 
             # Window in the back sheet holding the neck of the strip
             back_sheet = sheet.flats().sort_by(Face.area)[-1]
@@ -51,7 +57,7 @@ def base() -> Part:
 
         # Neck of the strip, from the head to the outside of the back sheet
         neck_start = radius + thickness
-        neck_length = 2 * (radius + thickness) + v.strip_protrusion - neck_start
+        neck_length = 2 * (radius + thickness) + spacing + v.strip_protrusion - neck_start
         neck_width = v.window_width - 2 * v.strip_clearance
         with Locations((v.strip_pos, neck_start + neck_length / 2, wall_z)):
             Box(neck_width, neck_length, thickness)

@@ -4,6 +4,7 @@ epsilon = 0.01
 
 # Base
 base_size = 210, 210
+sheet_gap = 4  # inner distance between the two sheets (at least 2 * bend_radius)
 
 # Strip folded from the front sheet, hat-shaped: the head stops against the back sheet,
 # the neck goes through a window in the back sheet
