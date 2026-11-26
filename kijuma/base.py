@@ -24,13 +24,20 @@ def front_cutter() -> Sketch:
     return sketch.sketch_local
 
 
+def view_radii() -> tuple[float, float]:
+    """Retourne les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
+    outer = v.dial_diam / 2 + v.base_view_offset
+    return outer, outer - v.base_view_width
+
+
 def view_window() -> Sketch:
-    """Retourne la fenêtre en arc de cercle, qui suit le cercle du cadran."""
+    """Retourne la fenêtre en arc de cercle, décalée vers l'extérieur du cadran."""
+    outer, inner = view_radii()
     with BuildSketch() as sketch:
         # La fenêtre dépasse de 5° au-delà du bord gauche, pour s'ouvrir sur celui-ci
         with BuildSketch(Rotation(90, 0, -180 - 5)):
-            Circle(v.dial_diam / 2, v.base_view_angle + 5, None)
-        Circle(v.dial_diam / 2 - v.base_view_width, mode=Mode.SUBTRACT)
+            Circle(outer, v.base_view_angle + 5, None)
+        Circle(inner, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
 
@@ -76,8 +83,11 @@ def base() -> Part:
             # Fenêtre du panneau avant, pour voir le bout des languettes, avec ses congés
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(view_window())
-            radii = v.dial_diam / 2, v.dial_diam / 2 - v.base_view_width
-            window_end = polar_vertices(sheet.vertices(), v.base_view_angle - 180, radii)
+            window_end = polar_vertices(
+                sheet.vertices(),
+                v.base_view_angle - 180,
+                view_radii(),
+            )
             fillet(window_end, v.fillet)
 
             # Le panneau avant est échancré pour abaisser la bande sous l'axe du cadran
@@ -90,7 +100,7 @@ def base() -> Part:
             edge = sheet.rims().filter_by(Axis.X).sort_by_distance((*notch_pos, 0))[0]
             flange(edge, radius + spacing, -90)
 
-            # Fenêtre de la tôle arrière, qui retient le cou de la bande
+            # Fenêtre de la tôle arrière, qui retient la base de la languette
             back_sheet = sheet.flats().sort_by(Face.area)[-1]
             wall_z = radius + thickness / 2 - v.base_strip_drop
             with Locations((v.base_strip_pos, wall_z, back_sheet.center().Z)):
