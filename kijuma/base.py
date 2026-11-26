@@ -13,6 +13,8 @@ from build123d import *
 from . import values as v
 from .utils import polar_vertices
 
+base_view_angle = len(v.dials) * v.tab_step
+
 
 def front_cutter() -> Sketch:
     """Construit l'esquisse à retirer du panneau avant : moitié haute, disque et fente."""
@@ -28,7 +30,7 @@ def front_cutter() -> Sketch:
 
 def view_radii() -> tuple[float, float]:
     """Construit les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
-    outer = v.dial_diam / 2 + v.base_view_offset
+    outer = v.dial_diam / 2 + v.base_view_width - v.tab_height
     return outer, outer - v.base_view_width
 
 
@@ -36,7 +38,7 @@ def left_strip_edge_y() -> float:
     """Construit la hauteur du bord de la languette de gauche."""
     # Le bord est assez bas pour que la languette tienne à gauche de la fenêtre en arc,
     # avec les congés des deux bouts et la matière minimale côté bord du socle.
-    right = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width
+    right = -v.base_size[0] / 2 + v.base_left_strip_margin + v.base_strip_width
     return -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
 
 
@@ -60,7 +62,7 @@ def view_window() -> Sketch:
     outer, inner = view_radii()
     with BuildSketch() as sketch:
         with BuildSketch(Rotation(90, 0, -180)):
-            Circle(outer, v.base_view_angle, None)
+            Circle(outer, base_view_angle, None)
         Circle(inner, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
@@ -71,7 +73,7 @@ def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
     corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
     window_bottom = polar_vertices(
         corners,
-        v.dial_slot_length + len(v.dials) * v.dial_slot_step,
+        180 + len(v.dials) * v.dial_slot_step,
         (v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width),
     )
     return [p for p in corners if p not in window_bottom]
@@ -101,12 +103,12 @@ def base() -> Part:
     """Construit la pièce correspondant au socle."""
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
-    spacing = v.base_gap - 2 * radius
+    spacing = v.base_play + len(v.dials) * v.material_thickness - 2 * radius
     # Languettes (x approximatif, y du bord, hauteur de l'échancrure) : à droite juste sous
     # l'axe du cadran, à gauche sur le bord plat laissé sous la pointe de la fenêtre
-    left = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width / 2
+    left = -v.base_size[0] / 2 + v.base_left_strip_margin + v.base_strip_width / 2
     strips = [
-        (v.base_strip_pos, -v.base_strip_drop, v.base_strip_drop),
+        (v.base_right_strip_pos, -v.base_right_strip_drop, v.base_right_strip_drop),
         (left, left_strip_edge_y(), 0),
     ]
     necks = []
@@ -136,7 +138,7 @@ def base() -> Part:
                 insert(view_window())
             window_end = polar_vertices(
                 sheet.vertices(),
-                v.base_view_angle - 180,
+                base_view_angle - 180,
                 view_radii(),
             )
             fillet(window_end, v.fillet)

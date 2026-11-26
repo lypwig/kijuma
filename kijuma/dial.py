@@ -50,14 +50,14 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
     languette pour compenser l'épaisseur des cadrans placés devant, de sorte que ce
     second pli soit au même niveau pour tous les cadrans.
     """
-    slot_length = v.dial_slot_length + slot_extra + v.dial_flap_angle
-    flap_start = slot_length - v.dial_flap_angle
+    slot_length = 180 + slot_extra + v.dial_slot_step
+    flap_start = slot_length - v.dial_slot_step
     thickness, radius = v.material_thickness, v.bend_radius
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch() as sketch:
                 Circle(v.disc_diam / 2)
-                Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
+                Circle(v.dial_diam / 2 - v.tab_height, -180, None)
                 Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
                 with BuildSketch(Rotation(90, 0, 0), mode=Mode.SUBTRACT):
@@ -77,22 +77,27 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
                 center = [
                     p for p in sketch.vertices() if hypot(p.X, p.Y) < v.disc_diam / 2 + 1
                 ]
-                tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
+                tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.tab_height
                 tab_end = polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
                 fillet([p for p in center if p not in slot] + tab_end, v.fillet)
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
                 # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
-                with Locations((v.base_strip_pos, 0), (-v.base_strip_pos, 0)):
+                with Locations((v.base_right_strip_pos, 0), (-v.base_right_strip_pos, 0)):
                     align = (Align.CENTER, Align.MAX)
-                    Rectangle(*v.dial_notch_size, align=align, mode=Mode.SUBTRACT)
+                    Rectangle(
+                        v.base_strip_width + v.dial_notch_size[0] * 2,
+                        v.base_right_strip_drop + v.dial_notch_size[1],
+                        align=align,
+                        mode=Mode.SUBTRACT,
+                    )
 
-                with Locations(v.dial_stop_loc):
+                with Locations((v.dial_diam / 2 - v.dial_stop_loc, 0)):
                     SlotOverall(*v.dial_stop_size)
 
             # Languette pliée à 90° vers l'avant, sur la corde qui ferme le bout de la fente
-            mid = radians(flap_start + v.dial_flap_angle / 2)
-            chord = v.disc_diam / 2 * cos(radians(v.dial_flap_angle / 2))
+            mid = radians(flap_start + v.dial_slot_step / 2)
+            chord = v.disc_diam / 2 * cos(radians(v.dial_slot_step / 2))
             edge = (
                 sheet.rims()
                 .filter_by(GeomType.LINE)
@@ -102,7 +107,7 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
                 edge,
                 v.dial_flap_depth + flap_extra,
                 -90,
-                gaps=v.dial_flap_gap,
+                gaps=0,
                 length_from=LengthFrom.INNER_SHARP,
             )
             # Second pli : le bout de la languette est rabattu vers le centre du cadran

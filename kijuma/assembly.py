@@ -23,7 +23,7 @@ def rivet(length: float = 8) -> Part:
 def assembly() -> Compound:
     """Construit l'assemblage."""
     base_part = base()
-    screw_part = rivet(v.base_gap + 2 * v.material_thickness)
+    screw_part = rivet(v.rivet_length)
     thickness = v.material_thickness
 
     # Socle : siège de la vis sur la face avant de la 1ère tôle (y = 0), axe Z vers -Y
