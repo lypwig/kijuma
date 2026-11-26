@@ -52,7 +52,8 @@ dial_slot_width = 5  # largeur de la fente en arc de cercle du disque central
 dial_slot_length = 180  # angle couvert par la fente en arc de cercle
 dial_slot_step = 10  # décalage de l'angle de la fente d'un cadran au suivant, en °
 dial_flap_angle = dial_slot_step  # largeur de la languette pliée, en ° (= décalage)
-dial_flap_depth = 10  # hauteur de la languette pliée vers l'avant, depuis le cadran
+dial_flap_depth = 1.1  # hauteur de la languette pliée vers l'avant, depuis le cadran
+dial_flap_fold = 5  # longueur du bout de la languette rabattu vers le centre
 dial_flap_gap = 0.3  # retrait de la pliure à chaque bout, pour éviter tout chevauchement
 dial_notch_size = base_strip_width + 0.5, base_strip_drop + 0.25  # entailles languette
 

@@ -33,7 +33,8 @@ def assembly() -> Compound:
 
     dials = []
     for i, (label, color) in enumerate(v.dials):
-        dial_part = dial(i * v.tab_step, i * v.dial_slot_step)
+        flap_extra = (len(v.dials) - 1 - i) * thickness
+        dial_part = dial(i * v.tab_step, i * v.dial_slot_step, flap_extra)
         dial_part.label = label
         dial_part.color = Color(*color)
         # Rivet : pivot du cadran, une épaisseur de tôle + un cadran par rang sous la tête

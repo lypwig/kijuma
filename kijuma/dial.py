@@ -1,6 +1,6 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
-from math import cos, hypot, radians, sin
+from math import cos, hypot, radians, sin, tan
 
 from build123d import *
 
@@ -20,13 +20,16 @@ def flap_window(start: float, end: float) -> Sketch:
     return sketch.sketch_local
 
 
-def dial(tab_angle: int, slot_extra: float = 0) -> Part:
+def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
     """
     Construit le cadran configuré pour l'angle de languette donné.
 
     La fente en arc de cercle démarre toujours à 0°, comme la fenêtre du panneau avant,
     et son extrémité est prolongée de `slot_extra` degrés. Une languette est pliée vers
     l'avant au bout de la fente : sa place est prise sur la fente, d'où l'allongement.
+    Son bout est lui-même replié vers le centre du cadran ; `flap_extra` allonge la
+    languette pour compenser l'épaisseur des cadrans placés devant, de sorte que ce
+    second pli soit au même niveau pour tous les cadrans.
     """
     slot_length = v.dial_slot_length + slot_extra + v.dial_flap_angle
     flap_start = slot_length - v.dial_flap_angle
@@ -78,11 +81,16 @@ def dial(tab_angle: int, slot_extra: float = 0) -> Part:
             )
             flange(
                 edge,
-                v.dial_flap_depth,
+                v.dial_flap_depth + flap_extra,
                 -90,
                 gaps=v.dial_flap_gap,
                 length_from=LengthFrom.INNER_SHARP,
             )
+            # Second pli : le bout de la languette est rabattu vers le centre du cadran
+            tip = sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0]
+            # Pli rétréci pour ne pas toucher les languettes voisines, qui convergent
+            fold_gap = v.dial_flap_fold * tan(radians(v.dial_flap_angle / 2))
+            flange(tip, v.dial_flap_fold, 90, gaps=fold_gap)
         thicken()
 
     # La tôle est construite côté +Y : on la retourne pour que la languette soit à l'avant
