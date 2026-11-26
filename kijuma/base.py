@@ -53,13 +53,22 @@ def view_window() -> Sketch:
     return sketch.sketch_local
 
 
-def strip_neck(spacing: float, x: float, top: float) -> Part:
+def left_strip_edge() -> tuple[float, float]:
+    """Construit la position (x, y) du bord de la languette de gauche."""
+    # Le bord est placé assez bas pour reposer sur de la matière, à gauche de la fenêtre
+    # en arc de cercle, donc loin du cadran, sans rien retirer d'autre que l'échancrure.
+    right = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width
+    x = right - v.base_strip_width / 2
+    return x, -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
+
+
+def strip_neck(spacing: float, x: float, edge_y: float) -> Part:
     """Construit la tête de la languette, jusqu'à l'extérieur du panneau arrière."""
     thickness, radius = v.material_thickness, v.bend_radius
     start = radius + thickness
     length = 2 * (radius + thickness) + spacing - start
     width = v.base_strip_window_width - 2 * v.base_strip_clearance
-    z = top + radius + thickness / 2 - v.base_strip_drop
+    z = edge_y + radius + thickness / 2
     with BuildPart() as builder, Locations((x, start + length / 2, z)):
         Box(width, length, thickness)
     return builder.part
@@ -70,11 +79,13 @@ def base() -> Part:
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = v.base_gap - 2 * radius
-    # Languettes : à droite sous l'axe du cadran, à gauche sous le chanfrein de la pointe
-    left = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width / 2
-    tip_center, tip_size = view_tip()
-    tip_bottom = tip_center[1] - tip_size[1] / 2
-    strips = [(v.base_strip_pos, 0), (left, tip_bottom)]
+    # Languettes (x, y du bord, hauteur de l'échancrure) : à droite juste sous l'axe du
+    # cadran, à gauche en bas de la pointe de matière laissée par la fenêtre en arc
+    left_x, left_y = left_strip_edge()
+    strips = [
+        (v.base_strip_pos, -v.base_strip_drop, v.base_strip_drop),
+        (left_x, left_y, v.base_strip_left_notch),
+    ]
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
@@ -115,8 +126,10 @@ def base() -> Part:
             fillet(window_end, v.fillet)
 
             # Chanfrein horizontal de la pointe de la fenêtre au bord gauche, avec congés
+            tip_center, tip_size = view_tip()
             with BuildSketch(mode=Mode.SUBTRACT), Locations(tip_center):
                 Rectangle(*tip_size)
+            tip_bottom = tip_center[1] - tip_size[1] / 2
             tip_corners = sheet.vertices().filter_by_position(
                 Axis.Y,
                 tip_bottom - v.tolerance,
@@ -124,25 +137,25 @@ def base() -> Part:
             )
             fillet(tip_corners, v.fillet)
 
-            for x, top in strips:
-                # Le panneau avant est échancré pour abaisser la bande sous son bord
-                notch_pos = x, top - v.base_strip_drop / 2
+            for x, edge_y, notch_height in strips:
+                # Le panneau avant est échancré, assez haut pour déplier la bande
+                notch_pos = x, edge_y + notch_height / 2
                 with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
-                    Rectangle(v.base_strip_width, v.base_strip_drop)
+                    Rectangle(v.base_strip_width, notch_height)
 
                 # Bande pliée vers l'arrière depuis le fond de l'échancrure.
                 # Sa base vient en butée contre le panneau arrière, sa tête traverse la
                 # fenêtre de la tôle arrière, qui retient la base de la languette.
-                edge = sheet.rims().filter_by(Axis.X).sort_by_distance((*notch_pos, 0))[0]
+                edge = sheet.rims().filter_by(Axis.X).sort_by_distance((x, edge_y, 0))[0]
                 flange(edge, radius + spacing, -90)
                 back_sheet = sheet.flats().sort_by(Face.area)[-1]
-                wall_z = top + radius + thickness / 2 - v.base_strip_drop
+                wall_z = edge_y + radius + thickness / 2
                 with Locations((x, wall_z, back_sheet.center().Z)):
                     height = thickness + 2 * v.base_strip_clearance
                     Rectangle(v.base_strip_window_width, height, mode=Mode.SUBTRACT)
         thicken()
-        for x, top in strips:
-            insert(strip_neck(spacing, x, top))
+        for x, edge_y, _ in strips:
+            insert(strip_neck(spacing, x, edge_y))
 
     part = builder.part
     part.label = v.base[0]
