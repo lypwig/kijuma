@@ -1,6 +1,6 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
-from math import hypot
+from math import degrees, hypot
 
 from build123d import *
 
@@ -8,15 +8,26 @@ from . import values as v
 from .utils import polar_vertices
 
 
-def dial(tab_angle: int) -> Part:
-    """Retourne le cadran configuré pour l'angle de languette donné."""
+def dial(tab_angle: int, slot_shift: float = 0) -> Part:
+    """
+    Retourne le cadran configuré pour l'angle de languette donné.
+
+    La fente en arc de cercle est décalée de `slot_shift` mm, mesurés sur son arc moyen.
+    """
+    slot_start = (
+        v.dial_slot_start
+        + degrees(
+            slot_shift / (v.disc_diam / 2 - v.dial_slot_width / 2),
+        )
+        - 37
+    )
     with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
             Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
             Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
-            with BuildSketch(Rotation(90, 0, v.dial_slot_start), mode=Mode.SUBTRACT):
+            with BuildSketch(Rotation(90, 0, slot_start), mode=Mode.SUBTRACT):
                 Circle(v.disc_diam / 2, v.dial_slot_length, None)
                 Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 

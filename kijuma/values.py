@@ -7,13 +7,13 @@ fillet = 2.5  # rayon des arrondis des angles
 bend_radius = 1  # rayon de courbure intérieur des pliages
 tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, en mm
 tab_step = 10  # décalage de l'angle des languettes d'un cadran au suivant, à partir de 0
-animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
+animated_dial = 2  # numéro du cadran à animer, de 1 à len(dials)
 
 # === Assemblage ===
 
 assembly_label = "Assemblage"
 rivet = "Rivet", (0.3, 0.3, 0.3)
-base = "Socle", (0.6, 0.6, 0.2)  # label et couleur (r, g, b) du socle
+base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
 dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Excellent", (0.0, 0.4, 0.1)),
     ("Bien", (0.5, 0.8, 0.3)),
@@ -27,10 +27,15 @@ dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
 base_size = 210, 210  # largeur et hauteur du socle
 base_gap = len(dials) * material_thickness + 1  # espace pour les cadrans + 1 mm de jeu
 
-# Fenêtre en arc de cercle du panneau avant, qui laisse voir les bouts des languettes
+# Fenêtre en arc de cercle à l'intérieur du panneau avant
+base_inner_view_start = 10
+base_inner_view_length = 250
+
+# Fenêtre en arc de cercle à l'extérieur du panneau avant
 base_view_width = 10  # largeur de la fenêtre
 base_view_offset = 5  # décalage de la fenêtre vers l'extérieur, par rapport au cadran
 base_view_angle = len(dials) * tab_step  # angle couvert depuis le bord gauche
+base_view_chamfer = 25  # hauteur du chanfrein horizontal de la pointe, au bord gauche
 
 # Languette pliée depuis le panneau venant traverser une fenêtre du panneau arrière
 base_strip_width = 20  # largeur de la base de la languette
@@ -49,6 +54,7 @@ dial_tab_height = 5  # hauteur des languettes, en bord de cadran
 dial_slot_width = 10  # largeur de la fente en arc de cercle du disque central
 dial_slot_start = 45  # angle de début de la fente en arc de cercle
 dial_slot_length = 180  # angle couvert par la fente en arc de cercle
+dial_slot_step = 8  # décalage de la fente d'un cadran au suivant, en mm (arc moyen)
 dial_notch_size = base_strip_width + 0.5, base_strip_drop + 0.25  # entailles languette
 
 # === Fixations ===

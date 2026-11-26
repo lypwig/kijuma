@@ -6,6 +6,8 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
+from math import sqrt
+
 from build123d import *
 
 from . import values as v
@@ -13,36 +15,46 @@ from .utils import polar_vertices
 
 
 def front_cutter() -> Sketch:
-    """Retourne l'esquisse à retirer du panneau avant : moitié haute, disque et fente."""
+    """Construit l'esquisse à retirer du panneau avant : moitié haute, disque et fente."""
     with BuildSketch() as sketch:
         align = (Align.CENTER, Align.MIN)
         Rectangle(v.base_size[0], v.base_size[1] / 2, align=align)
         Circle(v.disc_diam / 2, mode=Mode.SUBTRACT, align=None)
-        with BuildSketch(Rotation(90, 0, v.dial_slot_start)):
-            Circle(v.disc_diam / 2, v.dial_slot_length, align=None)
+        with BuildSketch(Rotation(90, 0, v.base_inner_view_start)):
+            Circle(v.disc_diam / 2, v.base_inner_view_length, align=None)
         Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
 
 def view_radii() -> tuple[float, float]:
-    """Retourne les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
+    """Construit les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
     outer = v.dial_diam / 2 + v.base_view_offset
     return outer, outer - v.base_view_width
 
 
+def view_tip() -> tuple[tuple[float, float], tuple[float, float]]:
+    """Construit le centre et la taille du rectangle qui coupe la pointe de la fenêtre."""
+    # La fenêtre sort du bord gauche du socle en laissant une pointe de matière effilée.
+    # Ce rectangle la coupe à l'horizontale, pour adoucir l'angle.
+    half, outer = v.base_size[0] / 2, view_radii()[0]
+    top = -sqrt(outer**2 - half**2) + 1  # un peu au-dessus de la pointe, dans la fenêtre
+    bottom = -sqrt(outer**2 - half**2) - v.base_view_chamfer
+    left, right = -half - 1, -sqrt(outer**2 - bottom**2) + 0.5
+    return ((left + right) / 2, (top + bottom) / 2), (right - left, top - bottom)
+
+
 def view_window() -> Sketch:
-    """Retourne la fenêtre en arc de cercle, décalée vers l'extérieur du cadran."""
+    """Construit la fenêtre en arc de cercle, décalée vers l'extérieur du cadran."""
     outer, inner = view_radii()
     with BuildSketch() as sketch:
-        # La fenêtre dépasse de 5° au-delà du bord gauche, pour s'ouvrir sur celui-ci
-        with BuildSketch(Rotation(90, 0, -180 - 5)):
-            Circle(outer, v.base_view_angle + 5, None)
+        with BuildSketch(Rotation(90, 0, -180)):
+            Circle(outer, v.base_view_angle, None)
         Circle(inner, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
 
 def strip_neck(spacing: float) -> Part:
-    """Retourne la tête de la languette, jusqu'à l'extérieur du panneau arrière."""
+    """Construit la tête de la languette, jusqu'à l'extérieur du panneau arrière."""
     thickness, radius = v.material_thickness, v.bend_radius
     start = radius + thickness
     length = 2 * (radius + thickness) + spacing - start
@@ -54,7 +66,7 @@ def strip_neck(spacing: float) -> Part:
 
 
 def base() -> Part:
-    """Retourne la pièce correspondant au socle."""
+    """Construit la pièce correspondant au socle."""
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = v.base_gap - 2 * radius
@@ -89,6 +101,11 @@ def base() -> Part:
                 view_radii(),
             )
             fillet(window_end, v.fillet)
+
+            # Chanfrein horizontal sur la pointe laissée par la fenêtre au bord gauche
+            tip_center, tip_size = view_tip()
+            with BuildSketch(mode=Mode.SUBTRACT), Locations(tip_center):
+                Rectangle(*tip_size)
 
             # Le panneau avant est échancré pour abaisser la bande sous l'axe du cadran
             notch_pos = v.base_strip_pos, -v.base_strip_drop / 2
