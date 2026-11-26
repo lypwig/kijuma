@@ -31,18 +31,19 @@ def base() -> Part:
             with Locations(Plane(sheet.flats().sort_by(Axis.Z)[0])):
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
-            # Strip folded backwards from the horizontal edge of the front sheet.
-            # Its head stops against the back sheet, its neck goes through the window.
-            edge = sheet.rims().filter_by(Axis.X).sort_by_distance((v.strip_pos, 0, 0))[0]
-            start, end = edge.position_at(0).X, edge.position_at(1).X
+            # The front sheet is notched so that the strip stands lower than the dial axis
+            notch_pos = v.strip_pos, -v.strip_drop / 2
+            with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
+                Rectangle(v.strip_width, v.strip_drop)
 
-            gap1 = max(start, end) - (v.strip_pos + v.strip_width / 2)
-            gap2 = (v.strip_pos - v.strip_width / 2) - min(start, end)
-            flange(edge, radius, -90, gaps=(gap1, gap2))
+            # Strip folded backwards from the bottom of the notch.
+            # Its head stops against the back sheet, its neck goes through the window.
+            edge = sheet.rims().filter_by(Axis.X).sort_by_distance((*notch_pos, 0))[0]
+            flange(edge, radius, -90)
 
             # Window in the back sheet holding the neck of the strip
             back_sheet = sheet.flats().sort_by(Face.area)[-1]
-            wall_z = radius + thickness / 2
+            wall_z = radius + thickness / 2 - v.strip_drop
             with Locations((v.strip_pos, wall_z, back_sheet.center().Z)):
                 height = thickness + 2 * v.strip_clearance
                 Rectangle(v.window_width, height, mode=Mode.SUBTRACT)

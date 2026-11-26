@@ -7,10 +7,11 @@ base_size = 210, 210
 
 # Strip folded from the front sheet, hat-shaped: the head stops against the back sheet,
 # the neck goes through a window in the back sheet
-strip_width = 50  # width of the head
+strip_width = 20  # width of the head
 strip_pos = 65  # horizontal position of the strip center from the dial center
+strip_drop = 1.5  # how far the strip is lowered below the dial axis
 strip_protrusion = 0  # how far the neck sticks out of the back sheet
-window_width = 40  # width of the window (the neck is narrower by twice the clearance)
+window_width = 15  # width of the window (the neck is narrower by twice the clearance)
 strip_clearance = 0.1  # play between the neck and the window, on each side
 
 # Dial
