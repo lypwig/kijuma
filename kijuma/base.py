@@ -32,4 +32,5 @@ def base() -> Part:
 
     part = builder.part
     part.label = "Base"
+    part.color = Color(0.6, 0.6, 0.2)
     return part

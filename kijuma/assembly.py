@@ -16,6 +16,7 @@ def rivet(length: float = 8) -> Part:
 
     part = builder.part
     part.label = "Screw"
+    part.color = Color(0.3, 0.3, 0.3)
     return part
 
 

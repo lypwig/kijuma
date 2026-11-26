@@ -27,4 +27,5 @@ def dial(tab_angle: int) -> Part:
 
     part = builder.part
     part.label = "Dial"
+    part.color = Color(0, 0.5, 0.5)
     return part
