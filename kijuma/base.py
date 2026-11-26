@@ -32,15 +32,27 @@ def view_radii() -> tuple[float, float]:
     return outer, outer - v.base_view_width
 
 
-def view_tip() -> tuple[tuple[float, float], tuple[float, float]]:
-    """Construit le centre et la taille du rectangle qui coupe la pointe de la fenêtre."""
+def left_strip_edge_y() -> float:
+    """Construit la hauteur du bord de la languette de gauche."""
+    # Le bord est assez bas pour que la languette tienne à gauche de la fenêtre en arc,
+    # avec les congés des deux bouts et la matière minimale côté bord du socle.
+    right = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width
+    return -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
+
+
+def view_tip() -> Sketch:
+    """Construit l'esquisse de la pointe de matière laissée par la fenêtre, à retirer."""
     # La fenêtre sort du bord gauche du socle en laissant une pointe de matière effilée.
-    # Ce rectangle la coupe à l'horizontale, pour adoucir l'angle.
+    # On retire cette pointe jusqu'au bord de la languette de gauche, mais seulement
+    # hors du cercle extérieur de la fenêtre : on ne touche pas au panneau côté cadran.
     half, outer = v.base_size[0] / 2, view_radii()[0]
-    top = -sqrt(outer**2 - half**2) + 1  # un peu au-dessus de la pointe, dans la fenêtre
-    bottom = -sqrt(outer**2 - half**2) - v.base_view_chamfer
-    left, right = -half - 1, -sqrt(outer**2 - bottom**2) + 0.5
-    return ((left + right) / 2, (top + bottom) / 2), (right - left, top - bottom)
+    top = -sqrt(outer**2 - half**2) + 1  # un peu au-dessus de la pointe
+    bottom = left_strip_edge_y()
+    with BuildSketch() as sketch:
+        with Locations((-half / 2 - 0.5, (top + bottom) / 2)):
+            Rectangle(half + 1, top - bottom)
+        Circle(outer, mode=Mode.SUBTRACT)
+    return sketch.sketch_local
 
 
 def view_window() -> Sketch:
@@ -53,13 +65,24 @@ def view_window() -> Sketch:
     return sketch.sketch_local
 
 
-def left_strip_edge() -> tuple[float, float]:
-    """Construit la position (x, y) du bord de la languette de gauche."""
-    # Le bord est placé assez bas pour reposer sur de la matière, à gauche de la fenêtre
-    # en arc de cercle, donc loin du cadran, sans rien retirer d'autre que l'échancrure.
-    right = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width
-    x = right - v.base_strip_width / 2
-    return x, -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
+def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
+    """Retourne les sommets du panneau avant à arrondir, sauf au bas de la fenêtre."""
+    min_pos, max_pos = -v.base_size[1] / 2 + 1, v.base_size[1]
+    corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
+    window_bottom = polar_vertices(
+        corners,
+        v.dial_slot_length + len(v.dials) * v.dial_slot_step,
+        (v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width),
+    )
+    return [p for p in corners if p not in window_bottom]
+
+
+def strip_fit(edge: Edge) -> tuple[tuple[float, float], float]:
+    """Construit le retrait des bouts de la pliure et le centre de la languette."""
+    # La languette occupe la largeur voulue à partir du bout droit du bord libre
+    xs = edge.position_at(0).X, edge.position_at(1).X
+    spare = max(xs) - min(xs) - v.base_strip_width
+    return ((spare, 0) if xs[0] < xs[1] else (0, spare)), max(xs) - v.base_strip_width / 2
 
 
 def strip_neck(spacing: float, x: float, edge_y: float) -> Part:
@@ -79,13 +102,14 @@ def base() -> Part:
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = v.base_gap - 2 * radius
-    # Languettes (x, y du bord, hauteur de l'échancrure) : à droite juste sous l'axe du
-    # cadran, à gauche en bas de la pointe de matière laissée par la fenêtre en arc
-    left_x, left_y = left_strip_edge()
+    # Languettes (x approximatif, y du bord, hauteur de l'échancrure) : à droite juste sous
+    # l'axe du cadran, à gauche sur le bord plat laissé sous la pointe de la fenêtre
+    left = -v.base_size[0] / 2 + v.base_strip_left_margin + v.base_strip_width / 2
     strips = [
         (v.base_strip_pos, -v.base_strip_drop, v.base_strip_drop),
-        (left_x, left_y, v.base_strip_left_notch),
+        (left, left_strip_edge_y(), 0),
     ]
+    necks = []
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
@@ -100,15 +124,7 @@ def base() -> Part:
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(front_cutter())
 
-            # Congés sur le panneau avant, sauf au bas de la fenêtre intérieure
-            min_pos, max_pos = -v.base_size[1] / 2 + 1, v.base_size[1]
-            corners = sheet.vertices().filter_by_position(Axis.Y, min_pos, max_pos)
-            window_bottom = polar_vertices(
-                corners,
-                v.dial_slot_length + len(v.dials) * v.dial_slot_step,
-                (v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width),
-            )
-            fillet([p for p in corners if p not in window_bottom], v.fillet)
+            fillet(front_corners(sheet.vertices()), v.fillet)
 
             with BuildSketch(mode=Mode.SUBTRACT):
                 Circle(v.rivet_diam / 2)
@@ -126,35 +142,41 @@ def base() -> Part:
             fillet(window_end, v.fillet)
 
             # Chanfrein horizontal de la pointe de la fenêtre au bord gauche, avec congés
-            tip_center, tip_size = view_tip()
-            with BuildSketch(mode=Mode.SUBTRACT), Locations(tip_center):
-                Rectangle(*tip_size)
-            tip_bottom = tip_center[1] - tip_size[1] / 2
+            with BuildSketch(mode=Mode.SUBTRACT):
+                insert(view_tip())
+            tip_y = left_strip_edge_y()
             tip_corners = sheet.vertices().filter_by_position(
                 Axis.Y,
-                tip_bottom - v.tolerance,
-                tip_bottom + v.tolerance,
+                tip_y - v.tolerance,
+                tip_y + v.tolerance,
             )
             fillet(tip_corners, v.fillet)
 
             for x, edge_y, notch_height in strips:
-                # Le panneau avant est échancré, assez haut pour déplier la bande
-                notch_pos = x, edge_y + notch_height / 2
-                with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
-                    Rectangle(v.base_strip_width, notch_height)
+                # Le panneau avant est échancré pour abaisser la bande sous son bord
+                if notch_height:
+                    notch_pos = x, edge_y + notch_height / 2
+                    with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
+                        Rectangle(v.base_strip_width, notch_height)
 
-                # Bande pliée vers l'arrière depuis le fond de l'échancrure.
+                # Bande pliée vers l'arrière depuis le bord libre, calée sur son bout droit.
                 # Sa base vient en butée contre le panneau arrière, sa tête traverse la
                 # fenêtre de la tôle arrière, qui retient la base de la languette.
                 edge = sheet.rims().filter_by(Axis.X).sort_by_distance((x, edge_y, 0))[0]
-                flange(edge, radius + spacing, -90)
-                back_sheet = sheet.flats().sort_by(Face.area)[-1]
+                gaps, center = strip_fit(edge)
+                flange(edge, radius + spacing, -90, gaps=gaps)
+                necks.append((center, edge_y))
+
+                back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
                 wall_z = edge_y + radius + thickness / 2
-                with Locations((x, wall_z, back_sheet.center().Z)):
-                    height = thickness + 2 * v.base_strip_clearance
-                    Rectangle(v.base_strip_window_width, height, mode=Mode.SUBTRACT)
+                with Locations((center, wall_z, back_z)):
+                    window = (
+                        v.base_strip_window_width,
+                        thickness + 2 * v.base_strip_clearance,
+                    )
+                    Rectangle(*window, mode=Mode.SUBTRACT)
         thicken()
-        for x, edge_y, _ in strips:
+        for x, edge_y in necks:
             insert(strip_neck(spacing, x, edge_y))
 
     part = builder.part

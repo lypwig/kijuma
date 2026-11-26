@@ -32,13 +32,11 @@ base_gap = len(dials) * material_thickness + 1  # espace pour les cadrans + 1 mm
 base_view_width = 10  # largeur de la fenêtre
 base_view_offset = 5  # décalage de la fenêtre vers l'extérieur, par rapport au cadran
 base_view_angle = len(dials) * tab_step  # angle couvert depuis le bord gauche
-base_view_chamfer = 25  # hauteur du chanfrein horizontal de la pointe, au bord gauche
 
 # Languette pliée depuis le panneau venant traverser une fenêtre du panneau arrière
 base_strip_width = 20  # largeur de la base de la languette
 base_strip_pos = 65  # position horizontale (du centre de la languette au centre du cadran)
-base_strip_left_margin = 7  # distance du bord gauche du socle à la languette de gauche
-base_strip_left_notch = 8  # hauteur de l'échancrure de gauche (dépliage sans chevauchement)
+base_strip_left_margin = 3  # matière entre le bord du socle et la languette de gauche
 base_strip_drop = 1  # de combien la languette est abaissée sous l'axe du cadran
 base_strip_window_width = 15  # largeur de la fenêtre
 base_strip_clearance = 0.1  # jeu entre la tête de la languette et la fenêtre
