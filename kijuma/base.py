@@ -31,21 +31,29 @@ def base() -> Part:
             with Locations(Plane(sheet.flats().sort_by(Axis.Z)[0])):
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
-            # Strip folded backwards from the horizontal edge of the front sheet
+            # Strip folded backwards from the horizontal edge of the front sheet.
+            # Its head stops against the back sheet, its neck goes through the window.
             edge = sheet.rims().filter_by(Axis.X).sort_by_distance((v.strip_pos, 0, 0))[0]
             start, end = edge.position_at(0).X, edge.position_at(1).X
-            tab_width = v.strip_width - 2 * v.strip_clearance
 
-            gap1 = max(start, end) - (v.strip_pos + tab_width / 2)
-            gap2 = (v.strip_pos - tab_width / 2) - min(start, end)
-            flange(edge, radius + thickness, -90, gaps=(gap1, gap2))
+            gap1 = max(start, end) - (v.strip_pos + v.strip_width / 2)
+            gap2 = (v.strip_pos - v.strip_width / 2) - min(start, end)
+            flange(edge, radius, -90, gaps=(gap1, gap2))
 
-            # Window in the back sheet holding the strip
+            # Window in the back sheet holding the neck of the strip
             back_sheet = sheet.flats().sort_by(Face.area)[-1]
-            with Locations((v.strip_pos, radius + thickness / 2, back_sheet.center().Z)):
+            wall_z = radius + thickness / 2
+            with Locations((v.strip_pos, wall_z, back_sheet.center().Z)):
                 height = thickness + 2 * v.strip_clearance
-                Rectangle(v.strip_width, height, mode=Mode.SUBTRACT)
+                Rectangle(v.window_width, height, mode=Mode.SUBTRACT)
         thicken()
+
+        # Neck of the strip, from the head to the outside of the back sheet
+        neck_start = radius + thickness
+        neck_length = 2 * (radius + thickness) + v.strip_protrusion - neck_start
+        neck_width = v.window_width - 2 * v.strip_clearance
+        with Locations((v.strip_pos, neck_start + neck_length / 2, wall_z)):
+            Box(neck_width, neck_length, thickness)
 
     part = builder.part
     part.label = "Base"
