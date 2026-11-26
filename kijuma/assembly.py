@@ -20,21 +20,31 @@ def rivet(length: float = 8) -> Part:
     return part
 
 
-def assembly(tab_angle: int = 20, dial_angle: float = 0) -> Compound:
-    """Return the compound of the assembly."""
+def assembly() -> Compound:
+    """Return the compound of the assembly, with one dial for each tab angle."""
     base_part = base()
-    dial_part = dial(tab_angle)
     screw_part = rivet()
+    thickness = v.material_thickness
 
     # Base : siège de la vis sur la face avant de la 1ère tôle (y = 0), axe Z vers -Y
     RigidJoint("screw_seat", base_part, Location((0, 0, 0), (90, 0, 0)))
-    # Vis : repère sous la tête, et pivot du dial à une épaisseur de tôle sous la tête
+    # Vis : repère sous la tête
     RigidJoint("seat", screw_part, Location((0, 0, 0)))
-    RevoluteJoint("pivot", screw_part, axis=Axis((0, 0, -v.material_thickness), (0, 0, 1)))
-    # Dial : repère sur sa face avant (y = -épaisseur), axe Z vers -Y
-    RigidJoint("pivot", dial_part, Location((0, -v.material_thickness, 0), (90, 0, 0)))
 
+    dials = []
+    for i, tab_angle in enumerate(v.tab_angles):
+        dial_part = dial(tab_angle)
+        dial_part.label = f"Dial {i + 1}"
+        # Vis : pivot du dial, une épaisseur de tôle plus un dial par rang sous la tête
+        axis = Axis((0, 0, -(i + 1) * thickness), (0, 0, 1))
+        RevoluteJoint(f"pivot {i + 1}", screw_part, axis=axis)
+        # Dial : repère sur sa face avant (y = -épaisseur), axe Z vers -Y
+        RigidJoint("pivot", dial_part, Location((0, -thickness, 0), (90, 0, 0)))
+        dials.append(dial_part)
+
+    # Les joints sont tous créés avant d'attacher les pièces, qui déplace la vis
     base_part.joints["screw_seat"].attach(screw_part.joints["seat"])
-    screw_part.joints["pivot"].attach(dial_part.joints["pivot"], angle=dial_angle)
+    for i, dial_part in enumerate(dials):
+        screw_part.joints[f"pivot {i + 1}"].attach(dial_part.joints["pivot"])
 
-    return Compound(label="Assembly", children=[base_part, screw_part, dial_part])
+    return Compound(label="Assembly", children=[base_part, screw_part, *dials])
