@@ -102,10 +102,17 @@ def base() -> Part:
             )
             fillet(window_end, v.fillet)
 
-            # Chanfrein horizontal sur la pointe laissée par la fenêtre au bord gauche
+            # Chanfrein horizontal de la pointe de la fenêtre au bord gauche, avec congés
             tip_center, tip_size = view_tip()
             with BuildSketch(mode=Mode.SUBTRACT), Locations(tip_center):
                 Rectangle(*tip_size)
+            tip_bottom = tip_center[1] - tip_size[1] / 2
+            tip_corners = sheet.vertices().filter_by_position(
+                Axis.Y,
+                tip_bottom - v.tolerance,
+                tip_bottom + v.tolerance,
+            )
+            fillet(tip_corners, v.fillet)
 
             # Le panneau avant est échancré pour abaisser la bande sous l'axe du cadran
             notch_pos = v.base_strip_pos, -v.base_strip_drop / 2

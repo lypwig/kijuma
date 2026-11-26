@@ -8,11 +8,12 @@ from . import values as v
 from .utils import polar_vertices
 
 
-def dial(tab_angle: int, slot_shift: float = 0) -> Part:
+def dial(tab_angle: int, slot_extra: float = 0) -> Part:
     """
     Construit le cadran configuré pour l'angle de languette donné.
 
-    La fente en arc de cercle est décalée de `slot_shift` degrés.
+    La fente en arc de cercle démarre toujours à 0°, comme la fenêtre du panneau avant,
+    et son extrémité est prolongée de `slot_extra` degrés.
     """
     with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
@@ -20,13 +21,13 @@ def dial(tab_angle: int, slot_shift: float = 0) -> Part:
             Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
             Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
-            with BuildSketch(Rotation(90, 0, slot_shift), mode=Mode.SUBTRACT):
-                Circle(v.disc_diam / 2, v.dial_slot_length, None)
+            with BuildSketch(Rotation(90, 0, 0), mode=Mode.SUBTRACT):
+                Circle(v.disc_diam / 2, v.dial_slot_length + slot_extra, None)
                 Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
             # Congés sur le disque central et le bout de la languette, pas sur la fente
             slot_radii = v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width
-            slot_ends = [slot_shift, slot_shift + v.dial_slot_length]
+            slot_ends = [0, v.dial_slot_length + slot_extra]
             slot = [
                 p
                 for a in slot_ends
