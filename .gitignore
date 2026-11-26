@@ -3,6 +3,7 @@
 notes.md
 
 .ruff_cache
+git.diff
 
 # Python
 __pycache__/

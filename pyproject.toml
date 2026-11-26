@@ -20,12 +20,12 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 91
+line-length = 92
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["CPY001", "D203", "D212", "F403", "F405", "T201"]
+ignore = ["CPY001", "D203", "D212", "F403", "F405", "S101", "T201"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
