@@ -29,11 +29,12 @@ tab_height = 5  # largeur des languettes des cadrans
 base_size = 210, 210  # largeur et hauteur du socle
 base_play = 1  # jeu à laisser entre les panneaux avant et arrière
 base_view_width = 10  # largeur de la fenêtre en arc de cercle
-base_strip_width = 20  # largeur de la base de la languette
+base_right_strip_width = 20  # largeur de la base de la languette de droite
 base_right_strip_pos = 65  # position horiz. du centre de la languette au centre du cadran
-base_left_strip_margin = 1  # matière entre le bord du socle et la languette de gauche
 base_right_strip_drop = 1  # de combien la languette est abaissée sous l'axe du cadran
-base_strip_window_width = 15  # largeur de la fenêtre
+base_left_strip_width = 15  # largeur de la base de la languette de gauche
+base_left_strip_pos = 10  # position horiz. du centre de la languette depuis le bord gauche
+base_strip_stop = 2.5  # largeur de chaque butée de la base, de part et d'autre de la tête
 base_strip_clearance = 0.1  # jeu entre la tête des languettes et des fenêtres
 
 # === Cadran ===

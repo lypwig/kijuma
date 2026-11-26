@@ -86,7 +86,7 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
                 with Locations((v.base_right_strip_pos, 0), (-v.base_right_strip_pos, 0)):
                     align = (Align.CENTER, Align.MAX)
                     Rectangle(
-                        v.base_strip_width + v.dial_notch_size[0] * 2,
+                        v.base_right_strip_width + v.dial_notch_size[0] * 2,
                         v.base_right_strip_drop + v.dial_notch_size[1],
                         align=align,
                         mode=Mode.SUBTRACT,
