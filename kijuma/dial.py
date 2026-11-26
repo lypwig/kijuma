@@ -1,8 +1,11 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
+from math import hypot
+
 from build123d import *
 
 from . import values as v
+from .utils import polar_vertices
 
 
 def dial(tab_angle: int) -> Part:
@@ -17,7 +20,11 @@ def dial(tab_angle: int) -> Part:
                 Circle(v.disc_diam / 2, v.dial_slot_length, None)
                 Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
-            fillet(sketch.vertices().sort_by(Axis.X)[1:-1], v.fillet)
+            # Congés sur le disque central, la fente et le bout de la languette
+            center = [p for p in sketch.vertices() if hypot(p.X, p.Y) < v.disc_diam / 2 + 1]
+            radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
+            tab_end = polar_vertices(sketch.vertices(), tab_angle - 180, radii)
+            fillet(center + tab_end, v.fillet)
             Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
             # Entailles aux deux bouts du bord plat, pour dégager la languette du socle

@@ -5,8 +5,9 @@
 material_thickness = 1  # épaisseur du carton, en mm
 fillet = 2.5  # rayon des arrondis des angles
 bend_radius = 1  # rayon de courbure intérieur des pliages
+tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, en mm
 tab_step = 10  # décalage de l'angle des languettes d'un cadran au suivant, à partir de 0
-animated_dial = 2  # numéro du cadran à animer, de 1 à len(dials)
+animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
 
 # === Assemblage ===
 

@@ -3,6 +3,7 @@
 from build123d import *
 
 from . import values as v
+from .utils import polar_vertices
 
 
 def base() -> Part:
@@ -45,6 +46,16 @@ def base() -> Part:
                 with BuildSketch(Rotation(90, 0, start)):
                     Circle(v.dial_diam / 2, span, None)
                 Circle(v.dial_diam / 2 - v.base_view_width, mode=Mode.SUBTRACT)
+
+            # Congés au fond de la fenêtre en arc de cercle
+            fillet(
+                polar_vertices(
+                    sheet.vertices(),
+                    v.base_view_angle - 180,
+                    (v.dial_diam / 2, v.dial_diam / 2 - v.base_view_width),
+                ),
+                v.fillet,
+            )
 
             # Le panneau avant est échancré pour abaisser la bande sous l'axe du cadran
             notch_pos = v.base_strip_pos, -v.base_strip_drop / 2
