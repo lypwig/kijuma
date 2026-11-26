@@ -44,7 +44,7 @@ def assembly() -> Compound:
 
     # Les joints sont tous créés avant d'attacher les pièces, qui déplace la vis
     base_part.joints["screw_seat"].attach(screw_part.joints["seat"])
-    for i, dial_part in enumerate(dials):
+    for i, dial_part in enumerate(reversed(dials)):
         screw_part.joints[f"pivot {i + 1}"].attach(dial_part.joints["pivot"])
 
     return Compound(label="Assembly", children=[base_part, screw_part, *dials])

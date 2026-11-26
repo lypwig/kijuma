@@ -37,6 +37,14 @@ def base() -> Part:
             with Locations(Plane(sheet.flats().sort_by(Axis.Z)[0])):
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
+            # Arc-shaped window of the front sheet, to see the ends of the dial tabs.
+            # It follows the dial circle and opens on the left, at the edge of the sheet.
+            start, span = -180 - 5, v.view_angle + 5  # 5° past the edge to open the window
+            with BuildSketch(mode=Mode.SUBTRACT):
+                with BuildSketch(Rotation(90, 0, start)):
+                    Circle(v.dial_diam / 2, span, None)
+                Circle(v.dial_diam / 2 - v.view_width, mode=Mode.SUBTRACT)
+
             # The front sheet is notched so that the strip stands lower than the dial axis
             notch_pos = v.strip_pos, -v.strip_drop / 2
             with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):

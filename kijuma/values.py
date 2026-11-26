@@ -3,11 +3,15 @@
 epsilon = 0.01
 
 # Assembly
-tab_angles = 20, 30, 40, 50, 60  # one dial for each angle, from front to back
+tab_angles = 0, 10, 20, 30, 40  # one dial for each angle, from front to back
 
 # Base
 base_size = 210, 210
 sheet_gap = 6  # inner distance between the two sheets: room for the dials plus 1 mm
+
+# Arc-shaped window of the front sheet, showing the ends of the dial tabs at rest
+view_width = 10  # width of the window
+view_angle = max(tab_angles) + 10  # angle covered from the left edge, past the last tab
 
 # Strip folded from the front sheet, hat-shaped: the head stops against the back sheet,
 # the neck goes through a window in the back sheet
