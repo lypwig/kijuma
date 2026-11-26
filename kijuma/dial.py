@@ -1,6 +1,6 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
-from math import cos, hypot, radians, sin, tan
+from math import cos, hypot, radians, sin
 
 from build123d import *
 
@@ -18,6 +18,25 @@ def flap_window(start: float, end: float) -> Sketch:
     with BuildSketch() as sketch:
         Polygon(*points, align=None)
     return sketch.sketch_local
+
+
+def flap_clip(start: float, end: float) -> Part:
+    """Construit le volume à retirer sous le cadran, hors du secteur de la languette."""
+    # Les côtés du secteur sont radiaux : les bouts rabattus de deux languettes voisines,
+    # qui convergent vers le centre, se touchent ainsi sur toute leur longueur.
+    reach = v.dial_diam
+    points = [(0, 0)] + [
+        (reach * cos(radians(a)), reach * sin(radians(a)))
+        for a in (start, (start + end) / 2, end)
+    ]
+    with BuildPart() as builder:
+        # Sous la tôle du cadran (de 0 à -épaisseur), là où il n'y a que la languette
+        with Locations((0, -v.material_thickness - reach / 2 - 0.5, 0)):
+            Box(2 * reach, reach, 2 * reach)
+        with BuildSketch(Plane.XZ):
+            Polygon(*points, align=None)
+        extrude(amount=reach * 2, mode=Mode.SUBTRACT)
+    return builder.part
 
 
 def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
@@ -88,13 +107,12 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
             )
             # Second pli : le bout de la languette est rabattu vers le centre du cadran
             tip = sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0]
-            # Pli rétréci pour ne pas toucher les languettes voisines, qui convergent
-            fold_gap = v.dial_flap_fold * tan(radians(v.dial_flap_angle / 2))
-            flange(tip, v.dial_flap_fold, 90, gaps=fold_gap)
+            flange(tip, v.dial_flap_fold, 90)
         thicken()
 
     # La tôle est construite côté +Y : on la retourne pour que la languette soit à l'avant
-    part = builder.part.mirror(Plane.XZ)
+    # Le bout rabattu est ensuite taillé en trapèze, selon les côtés radiaux du secteur
+    part = Part(builder.part.mirror(Plane.XZ) - flap_clip(flap_start, slot_length))
     part.label = "Dial"
     part.color = Color(0, 0.5, 0.5)
     return part
