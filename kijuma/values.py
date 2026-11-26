@@ -2,16 +2,26 @@
 
 epsilon = 0.01
 
+# Material
+material_thickness = 1
+
 # Assembly
-tab_angles = 0, 10, 20, 30, 40  # one dial for each angle, from front to back
+tab_step = 10  # shift of the tab angle from one dial to the next, starting from 0
+dials = (  # label (unique) and color (r, g, b) of each dial, from the back to the front
+    ("Excellent", (0.0, 0.4, 0.1)),
+    ("Bien", (0.5, 0.8, 0.3)),
+    ("Passable", (1.0, 0.9, 0.1)),
+    ("Mauvais", (1.0, 0.55, 0.0)),
+    ("À rejeter", (0.85, 0.1, 0.1)),
+)
 
 # Base
 base_size = 210, 210
-sheet_gap = 6  # inner distance between the two sheets: room for the dials plus 1 mm
+sheet_gap = len(dials) * material_thickness + 1  # room for the dials plus 1 mm
 
 # Arc-shaped window of the front sheet, showing the ends of the dial tabs at rest
 view_width = 10  # width of the window
-view_angle = max(tab_angles) + 10  # angle covered from the left edge, past the last tab
+view_angle = (len(dials) - 1) * tab_step + 10  # angle covered from the left edge
 
 # Strip folded from the front sheet, hat-shaped: the head stops against the back sheet,
 # the neck goes through a window in the back sheet
@@ -36,9 +46,6 @@ notch_size = strip_width + 0.5, strip_drop + 0.25  # notches clearing the strip 
 # Fasteners
 rivet_diam = 5
 rivet_head = 8, 2
-
-# Material
-material_thickness = 1
 
 # Global
 fillet = 2.5
