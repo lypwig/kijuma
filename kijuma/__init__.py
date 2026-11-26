@@ -1,1 +1,1 @@
-"""Package used to build the majority judgment cardboard kit."""
+"""Paquet servant à construire le kit de jugement majoritaire en carton."""

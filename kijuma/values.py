@@ -1,13 +1,19 @@
-"""List of values used in the project."""
+"""Liste des valeurs utilisées dans le projet."""
 
-epsilon = 0.01
+# === Global ===
 
-# Material
-material_thickness = 1
+material_thickness = 1  # épaisseur du carton, en mm
+fillet = 2.5  # rayon des arrondis des angles
+bend_radius = 1  # rayon de courbure intérieur des pliages
+tab_step = 10  # décalage de l'angle des languettes d'un cadran au suivant, à partir de 0
+animated_dial = 2  # numéro du cadran à animer, de 1 à len(dials)
 
-# Assembly
-tab_step = 10  # shift of the tab angle from one dial to the next, starting from 0
-dials = (  # label (unique) and color (r, g, b) of each dial, from the back to the front
+# === Assemblage ===
+
+assembly_label = "Assemblage"
+rivet = "Rivet", (0.3, 0.3, 0.3)
+base = "Socle", (0.6, 0.6, 0.2)  # label et couleur (r, g, b) du socle
+dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Excellent", (0.0, 0.4, 0.1)),
     ("Bien", (0.5, 0.8, 0.3)),
     ("Passable", (1.0, 0.9, 0.1)),
@@ -15,38 +21,35 @@ dials = (  # label (unique) and color (r, g, b) of each dial, from the back to t
     ("À rejeter", (0.85, 0.1, 0.1)),
 )
 
-# Base
-base_size = 210, 210
-sheet_gap = len(dials) * material_thickness + 1  # room for the dials plus 1 mm
+# === Socle ===
 
-# Arc-shaped window of the front sheet, showing the ends of the dial tabs at rest
-view_width = 10  # width of the window
-view_angle = (len(dials) - 1) * tab_step + 10  # angle covered from the left edge
+base_size = 210, 210  # largeur et hauteur du socle
+base_gap = len(dials) * material_thickness + 1  # espace pour les cadrans + 1 mm de jeu
 
-# Strip folded from the front sheet, hat-shaped: the head stops against the back sheet,
-# the neck goes through a window in the back sheet
-strip_width = 20  # width of the head
-strip_pos = 65  # horizontal position of the strip center from the dial center
-strip_drop = 1  # how far the strip is lowered below the dial axis
-strip_protrusion = 0  # how far the neck sticks out of the back sheet
-window_width = 15  # width of the window (the neck is narrower by twice the clearance)
-strip_clearance = 0.1  # play between the neck and the window, on each side
+# Fenêtre en arc de cercle du panneau avant, qui laisse voir les bouts des languettes
+base_view_width = 10  # largeur de la fenêtre
+base_view_angle = (len(dials) - 1) * tab_step + 10  # angle couvert depuis le bord gauche
 
-# Dial
-disc_diam = 74
-dial_diam = min(base_size) - 5
-stop_size = (5, 2)
-stop_loc = dial_diam / 2 - 5, 0
-tab_height = 5
-slot_width = 10
-slot_start = 45
-slot_length = 180
-notch_size = strip_width + 0.5, strip_drop + 0.25  # notches clearing the strip of the base
+# Languette pliée depuis le panneau venant traverser une fenêtre du panneau arrière
+base_strip_width = 20  # largeur de la base de la languette
+base_strip_pos = 65  # position horizontale (du centre de la languette au centre du cadran)
+base_strip_drop = 1  # de combien la languette est abaissée sous l'axe du cadran
+base_strip_window_width = 15  # largeur de la fenêtre
+base_strip_clearance = 0.1  # jeu entre la tête de la languette et la fenêtre
 
-# Fasteners
-rivet_diam = 5
-rivet_head = 8, 2
+# === Cadran ===
 
-# Global
-fillet = 2.5
-bend_radius = 1
+disc_diam = 74  # diamètre du disque central
+dial_diam = min(base_size) - 5  # diamètre extérieur du cadran (un peu moins que la base)
+dial_stop_size = (5, 2)  # longueur et largeur de la petite butée oblongue des cadrans
+dial_stop_loc = dial_diam / 2 - 5, 0  # position de la butée depuis le centre du cadran
+dial_tab_height = 5  # hauteur des languettes, en bord de cadran
+dial_slot_width = 10  # largeur de la fente en arc de cercle du disque central
+dial_slot_start = 45  # angle de début de la fente en arc de cercle
+dial_slot_length = 180  # angle couvert par la fente en arc de cercle
+dial_notch_size = base_strip_width + 0.5, base_strip_drop + 0.25  # entailles languette
+
+# === Fixations ===
+
+rivet_diam = 5  # diamètre de la tige du rivet, et des trous qui la reçoivent
+rivet_head = 8, 2  # diamètre et épaisseur de la tête du rivet

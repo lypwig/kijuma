@@ -1,4 +1,4 @@
-"""Build the dial used to show the merit profile."""
+"""Construit le cadran servant à afficher le profil de mérite."""
 
 from build123d import *
 
@@ -6,27 +6,27 @@ from . import values as v
 
 
 def dial(tab_angle: int) -> Part:
-    """Return the dial builder configured for the given tab angle."""
+    """Retourne le cadran configuré pour l'angle de languette donné."""
     with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
-            Circle(v.dial_diam / 2 - v.tab_height, -180, None)
+            Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
             Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
-            with BuildSketch(Rotation(90, 0, v.slot_start), mode=Mode.SUBTRACT):
-                Circle(v.disc_diam / 2, v.slot_length, None)
-                Circle(v.disc_diam / 2 - v.slot_width, mode=Mode.SUBTRACT)
+            with BuildSketch(Rotation(90, 0, v.dial_slot_start), mode=Mode.SUBTRACT):
+                Circle(v.disc_diam / 2, v.dial_slot_length, None)
+                Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
             fillet(sketch.vertices().sort_by(Axis.X)[1:-1], v.fillet)
             Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
-            # Notches on both ends of the flat edge, to clear the strip of the base
-            with Locations((v.strip_pos, 0), (-v.strip_pos, 0)):
+            # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
+            with Locations((v.base_strip_pos, 0), (-v.base_strip_pos, 0)):
                 align = (Align.CENTER, Align.MAX)
-                Rectangle(*v.notch_size, align=align, mode=Mode.SUBTRACT)
+                Rectangle(*v.dial_notch_size, align=align, mode=Mode.SUBTRACT)
 
-            with Locations(v.stop_loc):
-                SlotOverall(*v.stop_size)
+            with Locations(v.dial_stop_loc):
+                SlotOverall(*v.dial_stop_size)
 
         extrude(amount=v.material_thickness)
 

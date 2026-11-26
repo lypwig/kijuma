@@ -1,4 +1,4 @@
-"""Build the base model for the merit profile, on which the dials will be added."""
+"""Construit le modèle du socle du profil de mérite, qui reçoit les cadrans."""
 
 from build123d import *
 
@@ -6,17 +6,17 @@ from . import values as v
 
 
 def base() -> Part:
-    """Return the base model part."""
+    """Retourne la pièce correspondant au socle."""
     thickness, radius = v.material_thickness, v.bend_radius
-    # Flat length added between the two bends of the fold, to space the two sheets
-    spacing = v.sheet_gap - 2 * radius
+    # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
+    spacing = v.base_gap - 2 * radius
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch():
                 Rectangle(*v.base_size)
             bottom = sheet.rims().group_by(Axis.Y)[0]
-            if spacing:  # two folds of 90° with a flat wall between them
+            if spacing:  # deux pliages à 90° avec une paroi plane entre eux
                 flange(bottom, angle=-90, length=spacing)
                 bottom = sheet.rims().filter_by(Axis.X).sort_by(Axis.Z)[0]
                 flange(bottom, angle=-90, length=v.base_size[1])
@@ -25,9 +25,9 @@ def base() -> Part:
                 align = (Align.CENTER, Align.MIN)
                 Rectangle(v.base_size[0], v.base_size[1] / 2, align=align)
                 Circle(v.disc_diam / 2, mode=Mode.SUBTRACT, align=None)
-                with BuildSketch(Rotation(90, 0, v.slot_start)):
-                    Circle(v.disc_diam / 2, v.slot_length, align=None)
-                Circle(v.disc_diam / 2 - v.slot_width, mode=Mode.SUBTRACT)
+                with BuildSketch(Rotation(90, 0, v.dial_slot_start)):
+                    Circle(v.disc_diam / 2, v.dial_slot_length, align=None)
+                Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
             min_pos, max_pos = -v.base_size[1] / 2 + 1, v.base_size[1]
             fillet(sheet.vertices().filter_by_position(Axis.Y, min_pos, max_pos), v.fillet)
@@ -37,40 +37,41 @@ def base() -> Part:
             with Locations(Plane(sheet.flats().sort_by(Axis.Z)[0])):
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
-            # Arc-shaped window of the front sheet, to see the ends of the dial tabs.
-            # It follows the dial circle and opens on the left, at the edge of the sheet.
-            start, span = -180 - 5, v.view_angle + 5  # 5° past the edge to open the window
+            # Fenêtre en arc de cercle du panneau avant, pour voir le bout des languettes.
+            # Elle suit le cercle du cadran et s'ouvre à gauche, sur le bord du panneau.
+            # La fenêtre dépasse de 5° au-delà du bord, pour s'ouvrir sur celui-ci
+            start, span = -180 - 5, v.base_view_angle + 5
             with BuildSketch(mode=Mode.SUBTRACT):
                 with BuildSketch(Rotation(90, 0, start)):
                     Circle(v.dial_diam / 2, span, None)
-                Circle(v.dial_diam / 2 - v.view_width, mode=Mode.SUBTRACT)
+                Circle(v.dial_diam / 2 - v.base_view_width, mode=Mode.SUBTRACT)
 
-            # The front sheet is notched so that the strip stands lower than the dial axis
-            notch_pos = v.strip_pos, -v.strip_drop / 2
+            # Le panneau avant est échancré pour abaisser la bande sous l'axe du cadran
+            notch_pos = v.base_strip_pos, -v.base_strip_drop / 2
             with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
-                Rectangle(v.strip_width, v.strip_drop)
+                Rectangle(v.base_strip_width, v.base_strip_drop)
 
-            # Strip folded backwards from the bottom of the notch.
-            # Its head stops against the back sheet, its neck goes through the window.
+            # Bande pliée vers l'arrière depuis le fond de l'échancrure.
+            # Sa base vient en butée contre le panneau arrière, sa tête traverse la fenêtre.
             edge = sheet.rims().filter_by(Axis.X).sort_by_distance((*notch_pos, 0))[0]
             flange(edge, radius + spacing, -90)
 
-            # Window in the back sheet holding the neck of the strip
+            # Fenêtre de la tôle arrière, qui retient le cou de la bande
             back_sheet = sheet.flats().sort_by(Face.area)[-1]
-            wall_z = radius + thickness / 2 - v.strip_drop
-            with Locations((v.strip_pos, wall_z, back_sheet.center().Z)):
-                height = thickness + 2 * v.strip_clearance
-                Rectangle(v.window_width, height, mode=Mode.SUBTRACT)
+            wall_z = radius + thickness / 2 - v.base_strip_drop
+            with Locations((v.base_strip_pos, wall_z, back_sheet.center().Z)):
+                height = thickness + 2 * v.base_strip_clearance
+                Rectangle(v.base_strip_window_width, height, mode=Mode.SUBTRACT)
         thicken()
 
-        # Neck of the strip, from the head to the outside of the back sheet
+        # languette, de la base jusqu'à la tête (extérieur de la tôle arrière)
         neck_start = radius + thickness
-        neck_length = 2 * (radius + thickness) + spacing + v.strip_protrusion - neck_start
-        neck_width = v.window_width - 2 * v.strip_clearance
-        with Locations((v.strip_pos, neck_start + neck_length / 2, wall_z)):
+        neck_length = 2 * (radius + thickness) + spacing - neck_start
+        neck_width = v.base_strip_window_width - 2 * v.base_strip_clearance
+        with Locations((v.base_strip_pos, neck_start + neck_length / 2, wall_z)):
             Box(neck_width, neck_length, thickness)
 
     part = builder.part
-    part.label = "Base"
-    part.color = Color(0.6, 0.6, 0.2)
+    part.label = v.base[0]
+    part.color = Color(v.base[1])
     return part

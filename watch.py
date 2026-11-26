@@ -1,4 +1,4 @@
-"""A script used to watch changes in the Python module and update the view."""
+"""Script qui surveille les modifications du module Python et met à jour la vue."""
 
 import runpy
 import sys
@@ -6,7 +6,7 @@ import time
 import traceback
 from pathlib import Path
 
-import build123d  # noqa: F401 (heavy import to be executed once at startup)
+import build123d  # noqa: F401 (import lourd, exécuté une seule fois au démarrage)
 import ocp_viewer  # noqa: F401
 from watchfiles import PythonFilter, watch
 
@@ -20,7 +20,7 @@ protected = set(sys.modules)
 
 
 def run() -> None:
-    """Run the given script."""
+    """Exécute le script donné."""
     for name in list(sys.modules):
         if name not in protected:
             del sys.modules[name]
