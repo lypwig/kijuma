@@ -9,7 +9,7 @@ base_size = 210, 210
 # the neck goes through a window in the back sheet
 strip_width = 20  # width of the head
 strip_pos = 65  # horizontal position of the strip center from the dial center
-strip_drop = 1.5  # how far the strip is lowered below the dial axis
+strip_drop = 1  # how far the strip is lowered below the dial axis
 strip_protrusion = 0  # how far the neck sticks out of the back sheet
 window_width = 15  # width of the window (the neck is narrower by twice the clearance)
 strip_clearance = 0.1  # play between the neck and the window, on each side
@@ -23,6 +23,7 @@ tab_height = 5
 slot_width = 10
 slot_start = 45
 slot_length = 180
+notch_size = strip_width + 0.5, strip_drop + 0.25  # notches clearing the strip of the base
 
 # Fasteners
 rivet_diam = 5

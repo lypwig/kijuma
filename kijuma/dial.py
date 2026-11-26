@@ -20,6 +20,11 @@ def dial(tab_angle: int) -> Part:
             fillet(sketch.vertices().sort_by(Axis.X)[1:-1], v.fillet)
             Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
+            # Notches on both ends of the flat edge, to clear the strip of the base
+            with Locations((v.strip_pos, 0), (-v.strip_pos, 0)):
+                align = (Align.CENTER, Align.MAX)
+                Rectangle(*v.notch_size, align=align, mode=Mode.SUBTRACT)
+
             with Locations(v.stop_loc):
                 SlotOverall(*v.stop_size)
 
