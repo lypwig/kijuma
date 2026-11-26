@@ -12,6 +12,7 @@ animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
 # === Assemblage ===
 
 assembly_label = "Assemblage"
+dials_label = "Cadrans"  # label du groupe contenant les cadrans
 rivet = "Rivet", (0.3, 0.3, 0.3)
 base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
 dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
