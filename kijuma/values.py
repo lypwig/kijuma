@@ -48,9 +48,11 @@ dial_diam = min(base_size) - 5  # diamètre extérieur du cadran (un peu moins q
 dial_stop_size = (5, 2)  # longueur et largeur de la petite butée oblongue des cadrans
 dial_stop_loc = dial_diam / 2 - 5, 0  # position de la butée depuis le centre du cadran
 dial_tab_height = 5  # hauteur des languettes, en bord de cadran
-dial_slot_width = 10  # largeur de la fente en arc de cercle du disque central
+dial_slot_width = 5  # largeur de la fente en arc de cercle du disque central
 dial_slot_length = 180  # angle couvert par la fente en arc de cercle
 dial_slot_step = 10  # décalage de l'angle de la fente d'un cadran au suivant, en °
+dial_flap_angle = dial_slot_step  # largeur de la languette pliée, en ° (= décalage)
+dial_flap_depth = 10  # hauteur de la languette pliée vers l'avant, depuis le cadran
 dial_notch_size = base_strip_width + 0.5, base_strip_drop + 0.25  # entailles languette
 
 # === Fixations ===

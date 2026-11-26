@@ -84,8 +84,15 @@ def base() -> Part:
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(front_cutter())
 
+            # Congés sur le panneau avant, sauf au bas de la fenêtre intérieure
             min_pos, max_pos = -v.base_size[1] / 2 + 1, v.base_size[1]
-            fillet(sheet.vertices().filter_by_position(Axis.Y, min_pos, max_pos), v.fillet)
+            corners = sheet.vertices().filter_by_position(Axis.Y, min_pos, max_pos)
+            window_bottom = polar_vertices(
+                corners,
+                v.dial_slot_length + len(v.dials) * v.dial_slot_step,
+                (v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width),
+            )
+            fillet([p for p in corners if p not in window_bottom], v.fillet)
 
             with BuildSketch(mode=Mode.SUBTRACT):
                 Circle(v.rivet_diam / 2)

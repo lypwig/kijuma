@@ -13,8 +13,10 @@ def dial(tab_angle: int, slot_extra: float = 0) -> Part:
     Construit le cadran configuré pour l'angle de languette donné.
 
     La fente en arc de cercle démarre toujours à 0°, comme la fenêtre du panneau avant,
-    et son extrémité est prolongée de `slot_extra` degrés.
+    et son extrémité est prolongée de `slot_extra` degrés. Une languette est pliée vers
+    l'avant au bout de la fente : sa place est prise sur la fente, d'où l'allongement.
     """
+    slot_length = v.dial_slot_length + slot_extra + v.dial_flap_angle
     with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
@@ -22,12 +24,12 @@ def dial(tab_angle: int, slot_extra: float = 0) -> Part:
             Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
             with BuildSketch(Rotation(90, 0, 0), mode=Mode.SUBTRACT):
-                Circle(v.disc_diam / 2, v.dial_slot_length + slot_extra, None)
+                Circle(v.disc_diam / 2, slot_length, None)
                 Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
             # Congés sur le disque central et le bout de la languette, pas sur la fente
             slot_radii = v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width
-            slot_ends = [0, v.dial_slot_length + slot_extra]
+            slot_ends = [0, slot_length]
             slot = [
                 p
                 for a in slot_ends
@@ -48,6 +50,18 @@ def dial(tab_angle: int, slot_extra: float = 0) -> Part:
                 SlotOverall(*v.dial_stop_size)
 
         extrude(amount=v.material_thickness)
+
+        # Languette pliée à 90° vers l'avant, articulée sur le bord extérieur de la fente.
+        # Elle occupe le secteur retiré au bout de la fente : les languettes des cadrans
+        # successifs se touchent donc bout à bout, en position initiale.
+        outer = v.disc_diam / 2
+        with (
+            BuildSketch(Plane.XZ),
+            BuildSketch(Rotation(90, 0, slot_length - v.dial_flap_angle)),
+        ):
+            Circle(outer, v.dial_flap_angle, None)
+            Circle(outer - v.material_thickness, mode=Mode.SUBTRACT)
+        extrude(amount=v.dial_flap_depth + v.material_thickness)
 
     part = builder.part
     part.label = "Dial"
