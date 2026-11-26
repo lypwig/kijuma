@@ -20,8 +20,8 @@ def front_cutter() -> Sketch:
         align = (Align.CENTER, Align.MIN)
         Rectangle(v.base_size[0], v.base_size[1] / 2, align=align)
         Circle(v.disc_diam / 2, mode=Mode.SUBTRACT, align=None)
-        with BuildSketch(Rotation(90, 0, v.base_inner_view_start)):
-            Circle(v.disc_diam / 2, v.base_inner_view_length, align=None)
+        with BuildSketch(Rotation(90, 0, 0)):
+            Circle(v.disc_diam / 2, 180 + len(v.dials) * v.dial_slot_step, align=None)
         Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 

@@ -1,6 +1,6 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
-from math import degrees, hypot
+from math import hypot
 
 from build123d import *
 
@@ -10,32 +10,32 @@ from .utils import polar_vertices
 
 def dial(tab_angle: int, slot_shift: float = 0) -> Part:
     """
-    Retourne le cadran configuré pour l'angle de languette donné.
+    Construit le cadran configuré pour l'angle de languette donné.
 
-    La fente en arc de cercle est décalée de `slot_shift` mm, mesurés sur son arc moyen.
+    La fente en arc de cercle est décalée de `slot_shift` degrés.
     """
-    slot_start = (
-        v.dial_slot_start
-        + degrees(
-            slot_shift / (v.disc_diam / 2 - v.dial_slot_width / 2),
-        )
-        - 37
-    )
     with BuildPart() as builder:
         with BuildSketch(Plane.XZ) as sketch:
             Circle(v.disc_diam / 2)
             Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
             Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
-            with BuildSketch(Rotation(90, 0, slot_start), mode=Mode.SUBTRACT):
+            with BuildSketch(Rotation(90, 0, slot_shift), mode=Mode.SUBTRACT):
                 Circle(v.disc_diam / 2, v.dial_slot_length, None)
                 Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
 
-            # Congés sur le disque central, la fente et le bout de la languette
+            # Congés sur le disque central et le bout de la languette, pas sur la fente
+            slot_radii = v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width
+            slot_ends = [slot_shift, slot_shift + v.dial_slot_length]
+            slot = [
+                p
+                for a in slot_ends
+                for p in polar_vertices(sketch.vertices(), a, slot_radii)
+            ]
             center = [p for p in sketch.vertices() if hypot(p.X, p.Y) < v.disc_diam / 2 + 1]
-            radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
-            tab_end = polar_vertices(sketch.vertices(), tab_angle - 180, radii)
-            fillet(center + tab_end, v.fillet)
+            tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
+            tab_end = polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
+            fillet([p for p in center if p not in slot] + tab_end, v.fillet)
             Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
             # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
