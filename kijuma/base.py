@@ -17,7 +17,7 @@ def base() -> Part:
                 align = (Align.CENTER, Align.MIN)
                 Rectangle(v.base_size[0], v.base_size[1] / 2, align=align)
                 Circle(v.disc_diam / 2, mode=Mode.SUBTRACT, align=None)
-                with BuildSketch(Rotation(90, 0, 180 - v.slot_start)):
+                with BuildSketch(Rotation(90, 0, v.slot_start)):
                     Circle(v.disc_diam / 2, v.slot_length, align=None)
                 Circle(v.disc_diam / 2 - v.slot_width, mode=Mode.SUBTRACT)
 
