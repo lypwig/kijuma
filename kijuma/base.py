@@ -198,8 +198,8 @@ def wrap_bend_angle() -> float:
 def wrap_wall_length() -> float:
     """Retourne la longueur droite de la tranche du rabat, entre ses deux plis."""
     # Replié, le rabat va de la face avant du panneau arrière jusqu'à devant le volet : il
-    # fait l'épaisseur du socle, plus le jeu avec le volet
-    return (len(v.dials) + 2) * v.material_thickness + v.base_wrap_gap
+    # fait l'épaisseur du socle
+    return (len(v.dials) + 2) * v.material_thickness + u.wrap_clearance
 
 
 def wrap_wall_end() -> tuple[float, float]:
@@ -221,7 +221,7 @@ def unfold_wrap[T: Shape](shape: T) -> T:
     thickness, radius, half = v.material_thickness, v.bend_radius, v.base_size / 2
     first = Axis((half, (len(v.dials) + 1) * thickness - radius, 0), (0, 0, 1))
     # Replié, le 2e pli est contre l'extérieur du pli du volet, devant le rabat
-    second = Axis((half, -(radius + thickness + v.base_wrap_gap), 0), (0, 0, 1))
+    second = Axis((half, -(radius + thickness + u.wrap_clearance), 0), (0, 0, 1))
     delta = 90 - wrap_bend_angle()
     return shape.rotate(second, delta).rotate(first, delta)
 
@@ -318,16 +318,16 @@ def add_cover_disc(body: Compound) -> Compound:
 
 def add_wrap_disc(body: Compound) -> Compound:
     """Ajoute au rabat le disque des cadrans, centré sur le rivet, et le trou de sa tête."""
-    thickness, gap = v.material_thickness, v.base_wrap_gap
-    # Le rabat est replié devant le volet, à `gap` de sa face avant
-    plane = Plane.XZ.offset(u.cover_offset + gap)
+    thickness = v.material_thickness
+    # Le rabat est replié contre la face avant du volet
+    plane = Plane.XZ.offset(u.cover_offset + u.wrap_clearance)
     center = Align.CENTER, Align.CENTER
     with BuildPart() as disc, Locations(plane):
         Cylinder(u.disc_radius, thickness, align=(*center, Align.MIN))
-    # Le trou ne traverse que le rabat, sans toucher le volet
-    with BuildPart() as hole, Locations(plane.offset(-gap / 2)):
-        Cylinder(v.rivet_head_hole / 2, thickness + gap, align=(*center, Align.MIN))
-    # Tout est construit replié à 90°, puis pivoté avec le rabat
+    # Le trou part de la face avant du volet, qu'il ne touche pas, et sort du rabat
+    with BuildPart() as hole, Locations(plane.offset(-u.wrap_clearance / 2)):
+        Cylinder(v.rivet_head_hole / 2, thickness + 1, align=(*center, Align.MIN))
+    # Tout est construit replié, puis pivoté avec le rabat
     return Compound(body + unfold_wrap(disc.part) - unfold_wrap(hole.part))
 
 

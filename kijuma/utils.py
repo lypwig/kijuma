@@ -24,9 +24,13 @@ base_right_strip_drop = (v.material_thickness + v.bend_radius) / 2  # abaissemen
 # Distance de la face avant du volet à celle du panneau avant, une fois le volet replié
 cover_offset = 2 * v.bend_radius + v.material_thickness
 
+# Jeu symbolique entre le rabat et le volet : deux faces exactement en contact font échouer
+# l'épaississement de la tôle
+wrap_clearance = 0.001
+
 # Enfoncement du pli du volet dans le socle, pour que le rabat passe à l'extérieur du pli
-# avec du jeu, tout en gardant le même rayon de pliage que les autres plis
-cover_inset = v.material_thickness + v.base_wrap_gap
+# tout en gardant le même rayon de pliage que les autres plis
+cover_inset = v.material_thickness + wrap_clearance
 
 
 def notch_half(strip_width: float) -> float:

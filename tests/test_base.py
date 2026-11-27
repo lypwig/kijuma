@@ -42,6 +42,7 @@ def open_cover() -> Solid:
     """Retourne le corps du socle, avec le volet déplié à 90° du panneau avant."""
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(v, "base_cover_angle", 90)
+        patch.setattr(v, "base_wrap_angle", 0)  # replié, le rabat traverserait le volet
         return max(base().solids(), key=lambda s: s.volume)
 
 
@@ -174,8 +175,8 @@ def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
 
 def wrap_outer_y() -> float:
     """Retourne l'ordonnée de la face avant du rabat, replié devant le volet."""
-    inner_y = -(2 * v.bend_radius + v.material_thickness + v.base_wrap_gap)
-    return inner_y - v.material_thickness
+    # Le rabat est contre la face avant du volet, à un jeu symbolique près
+    return -(u.cover_offset + u.wrap_clearance + v.material_thickness)
 
 
 def test_wrap_is_folded_over_cover(body: Solid) -> None:
