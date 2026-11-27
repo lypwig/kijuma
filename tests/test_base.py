@@ -228,6 +228,52 @@ def test_wrap_has_disc_and_rivet_head_hole(body: Solid) -> None:
     assert any(pytest.approx(v.dial_disc_diam / 2) == e.radius for e in circles)
 
 
+def test_wrap_tip_has_two_rounded_corners(body: Solid) -> None:
+    """Les deux coins du bout du rabat sont arrondis, au rayon des angles."""
+    arcs = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(wrap_outer_y(), abs=TOLERANCE) == e.center().Y
+        and pytest.approx(v.fillet, abs=TOLERANCE) == e.radius
+    ]
+    half = v.base_size / 2
+    centers = sorted((e.arc_center.X, e.arc_center.Z) for e in arcs)
+    tip = half - v.base_wrap_length + v.fillet
+    expected = [(tip, -half + v.fillet), (tip, v.base_wrap_height - half - v.fillet)]
+    assert len(centers) == len(expected)
+    for center, target in zip(centers, sorted(expected), strict=True):
+        assert center == pytest.approx(target, abs=TOLERANCE)
+
+
+def test_wrap_has_four_rounded_slots(body: Solid) -> None:
+    """Le rabat a deux fentes horizontales sous le rivet et une verticale de chaque côté."""
+    radius = v.base_wrap_slot_width / 2
+    arcs = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(wrap_outer_y(), abs=TOLERANCE) == e.center().Y
+        and pytest.approx(radius, abs=TOLERANCE) == e.radius
+    ]
+    half = v.base_size / 2
+    side_margin, bottom_margin = v.base_wrap_slot_margin
+    reach_h = v.base_wrap_slot_h_length / 2 - radius
+    reach_v = v.base_wrap_slot_v_length / 2 - radius
+    middle = -half + bottom_margin + v.base_wrap_slot_v_length / 2
+    sides = half - side_margin, half - v.base_wrap_length + side_margin
+    # Chaque fente a deux bouts arrondis, centrés à `radius` de ses extrémités
+    drops = [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
+    expected: list[tuple[float, float]] = [
+        (x, y) for y in drops for x in (-reach_h, reach_h)
+    ]
+    expected += [(x, middle + s * reach_v) for x in sides for s in (-1, 1)]
+    centers = sorted((e.arc_center.X, e.arc_center.Z) for e in arcs)
+    assert len(centers) == len(expected)
+    for center, target in zip(centers, sorted(expected), strict=True):
+        assert center == pytest.approx(target, abs=TOLERANCE)
+
+
 def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
     """Déplié à 0°, la tranche et le rabat prolongent à plat le panneau arrière."""
     box = open_wrap.bounding_box()
@@ -246,6 +292,14 @@ def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
     ]
     assert len(holes) == 2  # noqa: PLR2004
     assert pytest.approx(center, abs=0.1) == holes[0].arc_center.X
+    # Les fentes aussi : 4 fentes de 2 bouts arrondis, sur chacune des 2 faces
+    slot_ends = [
+        e
+        for e in open_wrap.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and v.base_wrap_slot_width / 2 == pytest.approx(e.radius)
+    ]
+    assert len(slot_ends) == 16  # noqa: PLR2004
 
 
 def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
@@ -272,13 +326,14 @@ def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
 
 def test_cover_has_one_rounded_corner(body: Solid) -> None:
     """Seul l'angle entre la pente et le bas du volet est arrondi, au rayon des angles."""
-    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
-    # Le trou du rivet est exclu : son centre est sur l'axe, à l'origine
+    outer_y = -u.cover_offset  # face avant du volet
+    # Le trou du rivet est exclu : son centre est sur l'axe, à l'origine. Le rabat, à un
+    # jeu symbolique de là, a les mêmes arcs à son bout : le jeu les distingue.
     arcs = [
         e
         for e in body.edges()
         if e.geom_type == GeomType.CIRCLE
-        and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
+        and pytest.approx(outer_y, abs=u.wrap_clearance / 2) == e.center().Y
         and pytest.approx(v.fillet, abs=TOLERANCE) == e.radius
         and v.fillet**2 < e.arc_center.X**2 + e.arc_center.Z**2
     ]

@@ -214,6 +214,20 @@ def wrap_wall_end() -> tuple[float, float]:
     return start[0] + length * cos(angle), start[1] - length * sin(angle)
 
 
+def wrap_tip() -> tuple[float, float]:
+    """Retourne la position (x, y) du bout du rabat, sur son plan moyen."""
+    thickness, radius = v.material_thickness, v.bend_radius
+    angle = radians(wrap_bend_angle())
+    reach = radius + thickness / 2
+    # Le 2e pli tourne autour d'un centre du côté intérieur, et emporte le rabat de deux
+    # fois l'angle d'un pli par rapport au panneau arrière
+    end = wrap_wall_end()
+    center = end[0] - reach * sin(angle), end[1] - reach * cos(angle)
+    start = center[0] + reach * sin(2 * angle), center[1] + reach * cos(2 * angle)
+    length = v.base_wrap_length
+    return start[0] + length * cos(2 * angle), start[1] - length * sin(2 * angle)
+
+
 def unfold_wrap[T: Shape](shape: T) -> T:
     """Fait pivoter une pièce du rabat, construite repliée, à l'angle de ses plis."""
     # Les deux plis sont verticaux. Le 2e pivote d'abord, autour de son centre, puis le
@@ -237,6 +251,10 @@ def fold_wrap(sheet: BuildSheet) -> None:
     x, y = wrap_wall_end()
     end = sheet.rims().filter_by(Axis.Y).sort_by_distance((x, 0, -y))[0]
     flange(end, v.base_wrap_length, -angle)
+    # Les deux coins du bout du rabat sont arrondis
+    x, y = wrap_tip()
+    tip = sheet.rims().filter_by(Axis.Y).sort_by_distance((x, 0, -y))[0]
+    fillet(tip.vertices(), v.fillet)
 
 
 def fold_sides(sheet: BuildSheet) -> None:
@@ -316,8 +334,27 @@ def add_cover_disc(body: Compound) -> Compound:
     return Compound([cover.fillet(v.fillet, [edge])])
 
 
+def wrap_slots(plane: Plane) -> Part:
+    """Construit la matière à retirer du rabat pour y faire ses 4 fentes, bouts arrondis."""
+    half = v.base_size / 2
+    side_margin, bottom_margin = v.base_wrap_slot_margin
+    # Fentes verticales à `side_margin` des deux côtés du rabat, tranche et bout, et à
+    # `bottom_margin` de son bas
+    sides = half - side_margin, half - v.base_wrap_length + side_margin
+    middle = -half + bottom_margin + v.base_wrap_slot_v_length / 2
+    drops = [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
+    with BuildPart() as builder:
+        with BuildSketch(plane):
+            with Locations(*[(0, y) for y in drops]):
+                SlotOverall(v.base_wrap_slot_h_length, v.base_wrap_slot_width)
+            with Locations(*[(x, middle) for x in sides]):
+                SlotOverall(v.base_wrap_slot_v_length, v.base_wrap_slot_width, rotation=90)
+        extrude(amount=v.material_thickness + 1)
+    return builder.part
+
+
 def add_wrap_disc(body: Compound) -> Compound:
-    """Ajoute au rabat le disque des cadrans, centré sur le rivet, et le trou de sa tête."""
+    """Ajoute au rabat le disque des cadrans, centré sur le rivet, et perce ses trous."""
     thickness = v.material_thickness
     # Le rabat est replié contre la face avant du volet
     plane = Plane.XZ.offset(u.cover_offset + u.wrap_clearance)
@@ -328,7 +365,8 @@ def add_wrap_disc(body: Compound) -> Compound:
     with BuildPart() as hole, Locations(plane.offset(-u.wrap_clearance / 2)):
         Cylinder(v.rivet_head_hole / 2, thickness + 1, align=(*center, Align.MIN))
     # Tout est construit replié, puis pivoté avec le rabat
-    return Compound(body + unfold_wrap(disc.part) - unfold_wrap(hole.part))
+    cutters = hole.part + wrap_slots(plane.offset(-u.wrap_clearance / 2))
+    return Compound(body + unfold_wrap(disc.part) - unfold_wrap(cutters))
 
 
 def view_tip() -> Sketch:

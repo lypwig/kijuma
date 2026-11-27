@@ -56,6 +56,12 @@ base_cover_teeth_depth = 0.75  # profondeur des dents de l'arc du disque
 # --- Rabat (contourne la tranche droite, recouvre le volet) ---
 base_wrap_height = base_size / 2  # hauteur du rabat
 base_wrap_length = 180  # longueur du rabat replié sur la face avant, après la tranche
+base_wrap_slot_width = 2  # largeur des fentes du rabat, aux bouts arrondis
+base_wrap_slot_drop = 20  # distance de la 1re fente horizontale sous le rivet
+base_wrap_slot_step = 20  # écart entre les 2 fentes horizontales
+base_wrap_slot_h_length = 100  # longueur des fentes horizontales, centrées sur le rivet
+base_wrap_slot_margin = 25, 20  # distance des fentes verticales aux côtés et au bas
+base_wrap_slot_v_length = 30  # longueur des fentes verticales
 
 # === Cadran ===
 
