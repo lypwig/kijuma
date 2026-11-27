@@ -10,6 +10,7 @@ from math import asin, ceil, cos, degrees, floor, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import *
+from build123d.topology import Shape
 
 from . import utils as u
 from . import values as v
@@ -152,8 +153,21 @@ def fold_support(sheet: BuildSheet) -> None:
     )
 
 
+def cover_angle() -> float:
+    """Retourne l'angle du pli du volet en degrés, jamais nul (0° est refusé)."""
+    return max(v.base_cover_angle, MIN_BEND_ANGLE)
+
+
+def unfold_cover[T: Shape](shape: T) -> T:
+    """Fait pivoter une pièce du volet, construite repliée à 180°, à son angle de pli."""
+    # Le pli est vertical, à l'angle du bord droit du panneau avant : son centre est à
+    # `bend_radius` devant la face avant (y = 0)
+    axis = Axis((v.base_size / 2, -v.bend_radius, 0), (0, 0, 1))
+    return shape.rotate(axis, 180 - cover_angle())
+
+
 def fold_cover(sheet: BuildSheet) -> None:
-    """Plie à 180° le bord droit du panneau avant, vu de face, sur sa face avant."""
+    """Plie le bord droit du panneau avant, vu de face, vers l'avant, à son angle."""
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, 0))[0]
     # Le volet part du bas du panneau, quels que soient les congés du bord
     low, high = sorted((edge.position_at(0).Y, edge.position_at(1).Y))
@@ -161,7 +175,7 @@ def fold_cover(sheet: BuildSheet) -> None:
     gap_high = high - (v.base_cover_height - v.base_size / 2)
     flipped = edge.position_at(0).Y > edge.position_at(1).Y
     gaps = (gap_high, gap_low) if flipped else (gap_low, gap_high)
-    flange(edge, v.base_cover_length, 180, gaps=gaps)
+    flange(edge, v.base_cover_length, cover_angle(), gaps=gaps)
 
 
 def fold_sides(sheet: BuildSheet) -> None:
@@ -229,12 +243,13 @@ def add_cover_disc(body: Compound) -> Compound:
             Polygon(*below, align=None)
         extrude(amount=3 * thickness)
     # Les dents ne touchent que le disque, hors du volet : creusées avant la fusion
-    cover = Compound(body - cut.part + (disc.part - cover_teeth()) - hole.part)
+    # Tout est construit replié à 180°, puis pivoté avec le volet
+    disc_part = unfold_cover(disc.part - cover_teeth())
+    cover = Compound(body - unfold_cover(cut.part) + disc_part - unfold_cover(hole.part))
     # Congé de l'angle entre la pente et le bas du volet ; l'arc du disque reste vif
     y = -(2 * v.bend_radius + thickness / 2)
-    half = v.base_size / 2
-    corner = half - radius, y, -half
-    edge = cover.edges().filter_by(Axis.Y).sort_by_distance(corner)[0]
+    corner = unfold_cover(Vertex(v.base_size / 2 - radius, y, -v.base_size / 2))
+    edge = cover.edges().sort_by_distance(corner)[0]
     return Compound([cover.fillet(v.fillet, [edge])])
 
 

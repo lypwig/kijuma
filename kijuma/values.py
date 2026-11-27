@@ -1,5 +1,11 @@
 """Liste des valeurs utilisées dans le projet."""
 
+# === Interaction ===
+
+animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
+base_cover_angle = 180  # angle du pli du volet par rapport au panneau avant (180° = replié)
+base_support_angle = 180  # angle du pli du support par rapport au panneau arrière
+
 # === Global ===
 
 material_thickness = 1  # épaisseur du carton, en mm
@@ -10,7 +16,6 @@ tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, e
 
 # === Assemblage ===
 
-animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
 assembly_label = "Kijuma"
 dials_label = "Cadrans"  # label du groupe contenant les cadrans
 rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
@@ -31,7 +36,6 @@ base_left_strip_width = 15  # largeur de la base de la languette de gauche
 base_right_strip_width = 20  # largeur de la base de la languette de droite
 base_support_height = 50  # largeur de la patte du support, entre ses bords haut et bas
 base_support_length = 150  # longueur horizontale de la patte, depuis le panneau arrière
-base_support_angle = 180  # angle du pli du support par rapport au panneau arrière
 base_support_tilt = 20  # inclinaison du socle, vers l'arrière, une fois posé sur le support
 base_cover_height = base_size / 2  # hauteur du volet replié sur la face avant, côté droit
 base_cover_length = base_size / 2  # longueur du volet, depuis le bord droit du panneau

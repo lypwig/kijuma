@@ -36,6 +36,14 @@ def outline() -> list[Edge]:
     return list(faces[0].edges())
 
 
+@pytest.fixture(scope="module")
+def open_cover() -> Solid:
+    """Retourne le corps du socle, avec le volet déplié à 90° du panneau avant."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(v, "base_cover_angle", 90)
+        return max(base().solids(), key=lambda s: s.volume)
+
+
 def direction(edge: Edge) -> tuple[float, float]:
     """Retourne la direction (y, z) d'une arête droite, orientée vers l'arrière."""
     delta = edge.end_point() - edge.start_point()
@@ -134,6 +142,23 @@ def test_cover_has_rivet_hole(body: Solid) -> None:
         and e.arc_center.Y < 0
     ]
     assert holes, "trou du rivet introuvable dans le volet"
+
+
+def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
+    """Déplié à 90°, le volet part vers l'avant, avec son disque et son trou du rivet."""
+    # Le rivet est à la distance `base_size / 2` du pli, le disque le déborde de son rayon
+    # et le centre du pli est à `bend_radius` devant la face avant.
+    rivet_y = -(v.bend_radius + v.base_size / 2)
+    disc = v.base_cover_disc_diam / 2
+    assert pytest.approx(rivet_y - disc, abs=TOLERANCE) == open_cover.bounding_box().min.Y
+    holes = [
+        e
+        for e in open_cover.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(v.rivet_diam / 2, abs=TOLERANCE) == e.radius
+        and pytest.approx(rivet_y, abs=TOLERANCE) == e.arc_center.Y
+    ]
+    assert len(holes) == 2  # noqa: PLR2004
 
 
 def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
