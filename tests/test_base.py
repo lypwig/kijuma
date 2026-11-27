@@ -120,3 +120,26 @@ def test_cover_has_rivet_hole() -> None:
         and e.arc_center.Y < 0
     ]
     assert holes, "trou du rivet introuvable dans le volet"
+
+
+def test_cover_left_side_goes_down_at_45_degrees() -> None:
+    """Depuis le point le plus bas du disque, le bord du volet descend à 45° à droite."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    # Arêtes obliques de la face avant du volet
+    slanted = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.LINE
+        and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
+        and abs(e.end_point().X - e.start_point().X) > TOLERANCE
+        and abs(e.end_point().Z - e.start_point().Z) > TOLERANCE
+    ]
+    assert len(slanted) == 1
+    low = min(slanted[0].start_point(), slanted[0].end_point(), key=lambda p: p.X)
+    run = slanted[0].end_point().X - slanted[0].start_point().X
+    rise = slanted[0].end_point().Z - slanted[0].start_point().Z
+    assert pytest.approx(-1, abs=TOLERANCE) == rise / run
+    # Elle part du point le plus bas du disque, à la verticale du rivet
+    assert pytest.approx(0, abs=TOLERANCE) == low.X
+    assert pytest.approx(-v.base_cover_disc_diam / 2, abs=TOLERANCE) == low.Z

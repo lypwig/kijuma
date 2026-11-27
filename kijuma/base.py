@@ -139,14 +139,23 @@ def fold_sides(sheet: BuildSheet) -> None:
 def add_cover_disc(body: Compound) -> Compound:
     """Ajoute au volet le disque centré sur le rivet, percé du trou du rivet."""
     thickness = v.material_thickness
+    radius = v.base_cover_disc_diam / 2
     # Le volet est replié à `bend_radius * 2` de la face avant du panneau avant (y = 0)
     plane = Plane.XZ.offset(2 * v.bend_radius)
     center = Align.CENTER, Align.CENTER
     with BuildPart() as disc, Locations(plane):
-        Cylinder(v.base_cover_disc_diam / 2, thickness, align=(*center, Align.MIN))
+        Cylinder(radius, thickness, align=(*center, Align.MIN))
     with BuildPart() as hole, Locations(plane.offset(-1)):
         Cylinder(v.rivet_diam / 2, thickness + 2, align=(*center, Align.MIN))
-    return Compound(body + disc.part - hole.part)
+    # Le bord gauche du volet descend à 45° vers la droite, depuis le point le plus bas du
+    # disque : on retire ce qui dépasse la droite x + z = -rayon, hors du plan de la face
+    reach = v.base_size
+    below = (0, -radius), (reach, -radius - reach), (0, -radius - reach)
+    with BuildPart() as cut:
+        with BuildSketch(Plane.XZ.offset(thickness / 2)):
+            Polygon(*below, align=None)
+        extrude(amount=3 * thickness)
+    return Compound(body - cut.part + disc.part - hole.part)
 
 
 def view_tip() -> Sketch:
