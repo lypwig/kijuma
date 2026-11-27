@@ -1,6 +1,6 @@
 """Vérifie la forme de la patte du support du socle."""
 
-from math import atan2, cos, degrees, radians
+from math import atan, atan2, cos, degrees, pi, radians, sin, tan
 
 import pytest
 from build123d import *
@@ -173,3 +173,46 @@ def test_front_panel_corner_above_fold_is_sharp() -> None:
         and 0 <= f.center().Y <= v.material_thickness
     ]
     assert not rounded
+
+
+def support_area(angle: float) -> float:
+    """Retourne l'aire attendue de la face extérieure de la patte pour cet angle de pli."""
+    # Dans le plan de la patte : x le long de la patte depuis le coin vif, y vertical
+    radians_angle = radians(angle)
+    height, length = v.base_support_height, v.base_support_length
+    slope = tan(radians(v.base_support_tilt)) * sin(radians_angle)
+    tilt = atan(slope)
+    start = v.bend_radius * tan(radians_angle / 2)  # début de la partie plane
+    near = start, start * slope
+    far = length, length * slope
+    gap = height * cos(tilt)
+    top = far[0] - gap * sin(tilt), far[1] + gap * cos(tilt)
+    points = [near, far, top, (near[0], near[1] + height)]
+    shifted = [*points[1:], points[0]]
+    pairs = zip(points, shifted, strict=True)
+    double = sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in pairs)
+    # Chacun des deux coins du bout, à angle droit, perd `r² (1 - pi/4)`
+    return abs(double) / 2 - 2 * v.fillet**2 * (1 - pi / 4)
+
+
+@pytest.mark.parametrize("angle", [45, 60, 90, 120])
+def test_support_angle_is_configurable(
+    angle: float,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La patte garde son contour, quel que soit l'angle de pli du support."""
+    monkeypatch.setattr(v, "base_support_angle", angle)
+    part = base()
+    assert part.is_valid
+    body = max(part.solids(), key=lambda s: s.volume)
+    normal = -sin(radians(angle)), -cos(radians(angle))  # normale extérieure de la patte
+    walls = [
+        f
+        for f in body.faces()
+        if f.geom_type == GeomType.PLANE
+        and pytest.approx(0, abs=TOLERANCE) == f.normal_at().Z
+        and f.normal_at().X * normal[0] + f.normal_at().Y * normal[1] > FLAT_NORMAL
+        and (len(v.dials) + 2) * v.material_thickness < f.center().Y
+    ]
+    assert len(walls) == 1, "face extérieure de la patte introuvable"
+    assert pytest.approx(support_area(angle), abs=0.1) == walls[0].area
