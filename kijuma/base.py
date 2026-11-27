@@ -6,7 +6,7 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
-from math import asin, cos, radians, sin, sqrt
+from math import asin, cos, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import *
@@ -54,6 +54,59 @@ def left_strip_pos() -> float:
     """Construit l'abscisse du centre de la languette de gauche."""
     # Centrée sur la partie plate du bord, entre le congé du coin et celui de la fenêtre.
     return (-v.base_size / 2 + v.fillet + window_bottom()[0]) / 2
+
+
+def support_gaps(edge: Edge, height: float) -> tuple[float, float]:
+    """Construit le retrait des bouts du pli du support, pour ne garder que `height`."""
+    # Le pli part du bas du bord, la hauteur est mesurée vers le haut
+    start, end = edge.position_at(0).Y, edge.position_at(1).Y
+    top = edge.length - height
+    return (0, top) if start < end else (top, 0)
+
+
+def support_trim() -> Part:
+    """Construit les triangles à retirer de la patte pour en faire un parallélogramme."""
+    # Posé sur son support, le socle est incliné de `tilt` vers l'arrière : le bas de la
+    # patte est alors horizontal. Dans le modèle (qui ne pivote pas), il monte donc vers
+    # l'arrière. Les côtés verticaux mesurent `height`, la longueur horizontale `length`.
+    height, length = v.base_support_height, v.base_support_length
+    # Face arrière du panneau arrière, et bas de son bord gauche
+    back_y = v.base_play + (len(v.dials) + 2) * v.material_thickness
+    bottom = -v.base_size / 2
+    rise = (length + 2) * tan(radians(v.base_support_tilt))
+    near, far = back_y, back_y + length + 2
+    triangles = [
+        [(near, bottom), (far, bottom + rise), (far, bottom - 2), (near, bottom - 2)],
+        [
+            (near - 1, bottom + height - rise / (length + 2)),
+            (far, bottom + height + rise),
+            (far, bottom + height + rise + 2),
+            (near - 1, bottom + height + rise + 2),
+        ],
+    ]
+    with BuildPart() as builder:
+        for points in triangles:
+            with BuildSketch(Plane.YZ.offset(-v.base_size / 2 - 3)):
+                Polygon(*points, align=None)
+            extrude(amount=3)
+    return builder.part
+
+
+def fold_support(sheet: BuildSheet) -> None:
+    """Plie le bord gauche du panneau arrière, vu de face, vers l'arrière."""
+    back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
+    target = -v.base_size / 2, 0, back_z
+    edge = sheet.rims().filter_by(Axis.Y).sort_by_distance(target)[0]
+    # La patte déborde vers le haut de ce que le bas du parallélogramme monte
+    rise = v.base_support_length * tan(radians(v.base_support_tilt))
+    gaps = support_gaps(edge, v.base_support_height + rise)
+    flange(
+        edge,
+        v.base_support_length,
+        90,
+        gaps=gaps,
+        length_from=LengthFrom.INNER_SHARP,
+    )
 
 
 def view_tip() -> Sketch:
@@ -215,12 +268,14 @@ def base() -> Part:
                         thickness + 2 * v.base_strip_clearance,
                     )
                     Rectangle(*window, mode=Mode.SUBTRACT)
+
+            fold_support(sheet)
         thicken()
 
     # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
     # du panneau arrière quand le jeu est nul, et son contour disparaîtrait.
-    heads = [strip_neck(spacing, *neck) - builder.part for neck in necks]
-    part = Part([builder.part, *heads])
+    body = builder.part - support_trim()
+    part = Part([body, *(strip_neck(spacing, *neck) - body for neck in necks)])
     part.label = v.base[0]
     part.color = Color(v.base[1])
     return part

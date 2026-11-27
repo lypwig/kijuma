@@ -30,6 +30,9 @@ base_play = 1  # jeu à laisser entre les panneaux avant et arrière
 base_view_width = 10  # largeur de la fenêtre en arc de cercle
 base_left_strip_width = 15  # largeur de la base de la languette de gauche
 base_right_strip_width = 20  # largeur de la base de la languette de droite
+base_support_height = 60  # hauteur verticale de la patte du support, sur le côté gauche
+base_support_length = 120  # longueur horizontale de la patte, depuis le panneau arrière
+base_support_tilt = 20  # inclinaison du socle, vers l'arrière, une fois posé sur le support
 base_strip_stop = 2.5  # largeur des butées des languettes, de part et d'autre de la tête
 base_strip_clearance = 0  # jeu entre la tête des languettes et des fenêtres
 
