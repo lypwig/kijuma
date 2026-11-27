@@ -6,7 +6,7 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
-from math import asin, atan2, ceil, cos, degrees, floor, radians, sin, sqrt, tan
+from math import asin, ceil, cos, degrees, floor, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import *
@@ -16,7 +16,6 @@ from . import values as v
 
 base_view_angle = len(v.dials) * v.dial_tab_step
 MIN_BEND_ANGLE = 0.01  # angle minimal d'un pli, en °, car un pli de 0° est refusé
-TEETH_MARGIN = 0.5  # écart, en °, entre les dents et les congés qui bordent l'arc
 
 
 def front_cutter() -> Sketch:
@@ -173,12 +172,9 @@ def fold_sides(sheet: BuildSheet) -> None:
 
 def cover_teeth_span() -> tuple[float, float]:
     """Retourne les angles, en °, entre lesquels l'arc libre du disque est denté."""
-    radius, fillet_radius = v.base_cover_disc_diam / 2, v.fillet
-    # L'arc libre du disque va du congé qui le raccorde au haut du volet jusqu'à celui de
-    # la pente, à 45° (coin de 135°) ; les dents le couvrent en laissant une petite marge.
-    top = atan2(fillet_radius, sqrt((radius + fillet_radius) ** 2 - fillet_radius**2))
-    bottom = fillet_radius * tan(radians(22.5)) / radius
-    return degrees(top) + TEETH_MARGIN, 270 - degrees(bottom) - TEETH_MARGIN
+    # L'arc libre du disque, sans congé à ses bouts, va du haut du volet (0°) jusqu'au
+    # point le plus bas du disque, où part la pente (270°)
+    return 0, 270
 
 
 def cover_teeth_points() -> list[tuple[float, float]]:
@@ -234,12 +230,12 @@ def add_cover_disc(body: Compound) -> Compound:
         extrude(amount=3 * thickness)
     # Les dents ne touchent que le disque, hors du volet : creusées avant la fusion
     cover = Compound(body - cut.part + (disc.part - cover_teeth()) - hole.part)
-    # Congés des trois angles libres du volet : disque / haut, disque / pente, pente / bas
+    # Congé de l'angle entre la pente et le bas du volet ; l'arc du disque reste vif
     y = -(2 * v.bend_radius + thickness / 2)
     half = v.base_size / 2
-    corners = (radius, y, 0), (0, y, -radius), (half - radius, y, -half)
-    edges = [cover.edges().filter_by(Axis.Y).sort_by_distance(c)[0] for c in corners]
-    return Compound([cover.fillet(v.fillet, edges)])
+    corner = half - radius, y, -half
+    edge = cover.edges().filter_by(Axis.Y).sort_by_distance(corner)[0]
+    return Compound([cover.fillet(v.fillet, [edge])])
 
 
 def view_tip() -> Sketch:

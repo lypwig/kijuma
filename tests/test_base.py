@@ -158,8 +158,8 @@ def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
     assert pytest.approx(-v.base_cover_disc_diam / 2, abs=TOLERANCE) == point.X + point.Z
 
 
-def test_cover_has_three_rounded_corners(body: Solid) -> None:
-    """Les trois angles libres du volet sont arrondis avec le rayon des angles."""
+def test_cover_has_one_rounded_corner(body: Solid) -> None:
+    """Seul l'angle entre la pente et le bas du volet est arrondi, au rayon des angles."""
     outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     # Le trou du rivet est exclu : son centre est sur l'axe, à l'origine
     arcs = [
@@ -170,7 +170,7 @@ def test_cover_has_three_rounded_corners(body: Solid) -> None:
         and pytest.approx(v.fillet, abs=TOLERANCE) == e.radius
         and v.fillet**2 < e.arc_center.X**2 + e.arc_center.Z**2
     ]
-    assert len(arcs) == 3  # noqa: PLR2004
+    assert len(arcs) == 1
 
 
 def test_front_panel_corner_above_fold_is_sharp(body: Solid) -> None:
