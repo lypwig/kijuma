@@ -70,6 +70,11 @@ def support_angle() -> float:
     return radians(max(v.base_support_angle, MIN_BEND_ANGLE))
 
 
+def support_fold_length() -> float:
+    """Retourne la longueur verticale du pli : la largeur de la patte, vue de biais."""
+    return v.base_support_height / cos(radians(v.base_support_tilt))
+
+
 def support_plane() -> Plane:
     """Retourne le plan moyen de la patte : x le long de la patte, y vertical."""
     thickness, radius = v.material_thickness, v.bend_radius
@@ -91,27 +96,28 @@ def support_trim() -> Part:
     # Posé sur son support, le socle est incliné de `tilt` vers l'arrière : le bas de la
     # patte est alors horizontal. Dans le modèle (qui ne pivote pas), il monte donc vers
     # l'arrière, de `tilt` mesuré dans le plan de la patte, quel que soit son angle de
-    # pli. Le côté du panneau est vertical et mesure `height`, la longueur du bas est
-    # `length` le long de la patte, et le bout est perpendiculaire au bas et au haut.
-    height, length = v.base_support_height, v.base_support_length
+    # pli. La patte est large de `width` entre le bas et le haut, la longueur du bas est
+    # `length` le long de la patte, et le bout est perpendiculaire au bas et au haut. Le
+    # côté du panneau, vertical, est donc plus long que `width`.
+    width, length = v.base_support_height, v.base_support_length
+    fold = support_fold_length()
     thickness, radius = v.material_thickness, v.bend_radius
     tilt = radians(v.base_support_tilt)
     slope = tan(tilt)  # montée par longueur de patte
     bottom = -v.base_size / 2
-    # Coins du bout : le haut est à la distance perpendiculaire `height * cos(tilt)`
+    # Coins du bout : le haut est à la distance perpendiculaire `width`
     far_bottom = length, bottom + length * slope
-    gap = height * cos(tilt)
-    far_top = far_bottom[0] - gap * sin(tilt), far_bottom[1] + gap * cos(tilt)
+    far_top = far_bottom[0] - width * sin(tilt), far_bottom[1] + width * cos(tilt)
     # Le contour et la plaque débordent derrière la fin du pli, pour couper tout le pli
     start = -(radius + thickness) - 1
     profile = [
         (start - 1, bottom + (start - 1) * slope),
         far_bottom,
         far_top,
-        (start - 1, bottom + height + (start - 1) * slope),
+        (start - 1, bottom + fold + (start - 1) * slope),
     ]
     plate_end = length + 5
-    plate_top = bottom + height + length * slope + 10
+    plate_top = bottom + fold + length * slope + 10
     plate_center = (start + plate_end) / 2, (bottom - 10 + plate_top) / 2
     # Épais de part et d'autre de la patte ; le panneau arrière lui-même est préservé
     plane = support_plane().offset(-3 * thickness)
@@ -136,7 +142,7 @@ def fold_support(sheet: BuildSheet) -> None:
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance(target)[0]
     # La patte déborde vers le haut de ce que le bas du parallélogramme monte
     rise = v.base_support_length * tan(radians(v.base_support_tilt))
-    gaps = support_gaps(edge, v.base_support_height + rise)
+    gaps = support_gaps(edge, support_fold_length() + rise)
     flange(
         edge,
         v.base_support_length,

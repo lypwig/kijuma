@@ -1,6 +1,6 @@
 """Vérifie la forme de la patte du support du socle."""
 
-from math import atan, atan2, cos, degrees, pi, radians, sin, tan
+from math import atan2, cos, degrees, pi, radians, sin, tan
 
 import pytest
 from build123d import *
@@ -56,10 +56,18 @@ def test_support_has_two_rounded_corners(outline: list[Edge]) -> None:
 
 
 def test_support_panel_side_is_vertical(outline: list[Edge]) -> None:
-    """Le côté du panneau est vertical et mesure la hauteur voulue."""
+    """Le côté du panneau est vertical, et plus long que la largeur de la patte."""
     near = lines(outline)[0]
     assert direction(near)[0] == pytest.approx(0, abs=TOLERANCE)
-    assert near.length == pytest.approx(v.base_support_height, abs=TOLERANCE)
+    width = v.base_support_height / cos(radians(v.base_support_tilt))
+    assert near.length == pytest.approx(width, abs=TOLERANCE)
+
+
+def test_support_width(outline: list[Edge]) -> None:
+    """Le bout mesure la largeur voulue, moins les deux congés."""
+    end = lines(outline)[3]
+    expected = v.base_support_height - 2 * v.fillet
+    assert end.length == pytest.approx(expected, abs=TOLERANCE)
 
 
 def test_support_bottom_rises_by_tilt(outline: list[Edge]) -> None:
@@ -180,13 +188,11 @@ def test_front_panel_corner_above_fold_is_sharp() -> None:
 def support_area() -> float:
     """Retourne l'aire attendue de la face extérieure de la patte, quel que soit son pli."""
     # Dans le plan de la patte : x le long de la patte depuis la fin du pli, y vertical
-    height, length = v.base_support_height, v.base_support_length
-    slope = tan(radians(v.base_support_tilt))
-    tilt = atan(slope)
-    far = length, length * slope
-    gap = height * cos(tilt)
-    top = far[0] - gap * sin(tilt), far[1] + gap * cos(tilt)
-    points = [(0, 0), far, top, (0, height)]
+    width, length = v.base_support_height, v.base_support_length
+    tilt = radians(v.base_support_tilt)
+    far = length, length * tan(tilt)
+    top = far[0] - width * sin(tilt), far[1] + width * cos(tilt)
+    points = [(0, 0), far, top, (0, width / cos(tilt))]
     shifted = [*points[1:], points[0]]
     pairs = zip(points, shifted, strict=True)
     double = sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in pairs)
