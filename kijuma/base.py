@@ -6,7 +6,7 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
-from math import sqrt
+from math import asin, cos, radians, sin, sqrt
 
 from build123d import *
 
@@ -35,12 +35,19 @@ def view_radii() -> tuple[float, float]:
     return outer, outer - v.base_view_width
 
 
+def window_bottom() -> tuple[float, float]:
+    """Construit le point le plus bas de la fenêtre en arc de cercle, congé compris."""
+    # Le congé du bout de la fenêtre est un cercle tangent à l'arc extérieur : son centre
+    # est à (rayon - congé) du centre du cadran, un peu avant le bout de la fenêtre.
+    ring = view_radii()[0] - v.fillet
+    angle = radians(base_view_angle) - asin(v.fillet / ring)
+    return -ring * cos(angle), -ring * sin(angle) - v.fillet
+
+
 def left_strip_edge_y() -> float:
     """Construit la hauteur du bord de la languette de gauche."""
-    # Le bord est assez bas pour que la languette tienne à gauche de la fenêtre en arc,
-    # avec le congé du bout droit.
-    right = base_left_strip_pos - v.base_size / 2 + v.base_left_strip_width / 2
-    return -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
+    # Le bord est à hauteur du bas de la fenêtre, tangent à son congé : pas de ressaut.
+    return window_bottom()[1]
 
 
 def view_tip() -> Sketch:
@@ -55,6 +62,10 @@ def view_tip() -> Sketch:
         with Locations((-half / 2 - 0.5, (top + bottom) / 2)):
             Rectangle(half + 1, top - bottom)
         Circle(outer, mode=Mode.SUBTRACT)
+        # Prolongement du bord jusqu'au point le plus bas du congé de la fenêtre
+        left, right = -half - 1, window_bottom()[0]
+        with Locations(((left + right) / 2, bottom + 0.5)):
+            Rectangle(right - left, 1)
     return sketch.sketch_local
 
 
@@ -161,7 +172,10 @@ def base() -> Part:
                 tip_y - v.tolerance,
                 tip_y + v.tolerance,
             )
-            fillet(tip_corners, v.fillet)
+            fillet(
+                tip_corners.filter_by_position(Axis.X, -v.base_size, -v.base_size / 2 + 1),
+                v.fillet,
+            )
 
             for x, edge_y, notch_height, width in strips:
                 # Le panneau avant est échancré pour abaisser la bande sous son bord
