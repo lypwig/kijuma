@@ -166,22 +166,71 @@ def unfold_cover[T: Shape](shape: T) -> T:
     return shape.rotate(axis, 180 - cover_angle())
 
 
+def bottom_gaps(edge: Edge, height: float) -> tuple[float, float]:
+    """Construit le retrait des bouts d'un bord vertical, pour garder `height` du bas."""
+    # Le pli part du bas du panneau, quels que soient les congés du bord
+    low, high = sorted((edge.position_at(0).Y, edge.position_at(1).Y))
+    gap_low = -v.base_size / 2 - low
+    gap_high = high - (height - v.base_size / 2)
+    flipped = edge.position_at(0).Y > edge.position_at(1).Y
+    return (gap_high, gap_low) if flipped else (gap_low, gap_high)
+
+
 def fold_cover(sheet: BuildSheet) -> None:
     """Plie le bord droit du panneau avant, vu de face, vers l'avant, à son angle."""
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, 0))[0]
-    # Le volet part du bas du panneau, quels que soient les congés du bord
-    low, high = sorted((edge.position_at(0).Y, edge.position_at(1).Y))
-    gap_low = -v.base_size / 2 - low
-    gap_high = high - (v.base_cover_height - v.base_size / 2)
-    flipped = edge.position_at(0).Y > edge.position_at(1).Y
-    gaps = (gap_high, gap_low) if flipped else (gap_low, gap_high)
+    gaps = bottom_gaps(edge, v.base_cover_height)
     flange(edge, v.base_cover_length, cover_angle(), gaps=gaps)
 
 
+def wrap_angle() -> float:
+    """Retourne l'angle du 1er pli du rabat en degrés, jamais nul (0° est refusé)."""
+    return max(v.base_wrap_angle, MIN_BEND_ANGLE)
+
+
+def wrap_radius() -> float:
+    """Retourne le rayon intérieur du 1er pli du rabat, qui contourne le pli du volet."""
+    # La tranche du rabat passe à l'extérieur du pli du volet, et du jeu
+    return v.bend_radius + v.material_thickness + v.base_wrap_gap
+
+
+def wrap_wall_length() -> float:
+    """Retourne la longueur droite de la tranche du rabat, entre ses deux plis."""
+    # Replié à 90°, le rabat va de la face avant du panneau arrière jusqu'au volet : il
+    # fait l'épaisseur du socle, hors panneau avant (rayons et jeu s'annulent)
+    return (len(v.dials) + 1) * v.material_thickness
+
+
+def wrap_wall_end() -> tuple[float, float]:
+    """Retourne la position (x, y) du bout de la tranche, sur son plan moyen."""
+    thickness, radius = v.material_thickness, wrap_radius()
+    # Le pli tourne autour d'un centre devant la face avant du panneau arrière
+    angle = radians(wrap_angle())
+    center = v.base_size / 2, (len(v.dials) + 1) * thickness - radius
+    reach = radius + thickness / 2
+    start = center[0] + reach * sin(angle), center[1] + reach * cos(angle)
+    length = wrap_wall_length()
+    return start[0] + length * cos(angle), start[1] - length * sin(angle)
+
+
+def fold_wrap(sheet: BuildSheet) -> None:
+    """Plie le bord droit du panneau arrière vers l'avant, puis sur la face avant."""
+    back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
+    edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, back_z))[0]
+    angle = wrap_angle()
+    gaps = bottom_gaps(edge, v.base_wrap_height)
+    flange(edge, wrap_wall_length(), -angle, wrap_radius(), gaps)
+    # Le 2e pli est sur le bout de la tranche, de la même hauteur
+    x, y = wrap_wall_end()
+    end = sheet.rims().filter_by(Axis.Y).sort_by_distance((x, 0, -y))[0]
+    flange(end, v.base_wrap_length, -90)
+
+
 def fold_sides(sheet: BuildSheet) -> None:
-    """Plie les côtés du socle : la patte du support et le volet de la face avant."""
+    """Plie les côtés du socle : support, volet de la face avant et rabat de la tranche."""
     fold_support(sheet)
     fold_cover(sheet)
+    fold_wrap(sheet)
 
 
 def cover_teeth_span() -> tuple[float, float]:
@@ -241,7 +290,8 @@ def add_cover_disc(body: Compound) -> Compound:
     with BuildPart() as cut:
         with BuildSketch(Plane.XZ.offset(thickness / 2)):
             Polygon(*below, align=None)
-        extrude(amount=3 * thickness)
+        # Jusqu'à la face avant du volet seulement, pour épargner le rabat qui le recouvre
+        extrude(amount=u.cover_offset - thickness / 2)
     # Les dents ne touchent que le disque, hors du volet : creusées avant la fusion
     # Tout est construit replié à 180°, puis pivoté avec le volet
     disc_part = unfold_cover(disc.part - cover_teeth())

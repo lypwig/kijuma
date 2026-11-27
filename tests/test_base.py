@@ -6,7 +6,7 @@ import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.base import base, cover_teeth_points
+from kijuma.base import base, cover_teeth_points, wrap_radius, wrap_wall_length
 
 TOLERANCE = 0.01  # mm ou degrés
 FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face orientée selon X
@@ -41,6 +41,14 @@ def open_cover() -> Solid:
     """Retourne le corps du socle, avec le volet déplié à 90° du panneau avant."""
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(v, "base_cover_angle", 90)
+        return max(base().solids(), key=lambda s: s.volume)
+
+
+@pytest.fixture(scope="module")
+def open_wrap() -> Solid:
+    """Retourne le corps du socle, avec le rabat de la tranche déplié à plat (0°)."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(v, "base_wrap_angle", 0)
         return max(base().solids(), key=lambda s: s.volume)
 
 
@@ -113,13 +121,13 @@ def test_support_length(outline: list[Edge]) -> None:
 
 def test_cover_is_folded_over_front_face(body: Solid) -> None:
     """Le volet recouvre la face avant, du bas du panneau et jusqu'au disque du rivet."""
-    front_y = -v.material_thickness  # le panneau avant occupe y de 0 à l'épaisseur
+    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     covers = [
         f
         for f in body.faces()
         if f.geom_type == GeomType.PLANE
         and f.normal_at().Y < -FLAT_NORMAL
-        and front_y > f.center().Y
+        and pytest.approx(outer_y, abs=TOLERANCE) == f.center().Y
     ]
     assert len(covers) == 1, "face extérieure du volet introuvable"
     box = covers[0].bounding_box()
@@ -159,6 +167,44 @@ def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
         and pytest.approx(rivet_y, abs=TOLERANCE) == e.arc_center.Y
     ]
     assert len(holes) == 2  # noqa: PLR2004
+
+
+def test_wrap_is_folded_over_cover(body: Solid) -> None:
+    """Le rabat contourne la tranche et recouvre le volet, du bas à la moitié du socle."""
+    # Son jeu avec le volet : sa face intérieure est à `gap` de la face avant du volet
+    inner_y = -(2 * v.bend_radius + v.material_thickness + v.base_wrap_gap)
+    outer_y = inner_y - v.material_thickness
+    wraps = [
+        f
+        for f in body.faces()
+        if f.geom_type == GeomType.PLANE
+        and f.normal_at().Y < -FLAT_NORMAL
+        and pytest.approx(outer_y, abs=TOLERANCE) == f.center().Y
+    ]
+    assert len(wraps) == 1, "face extérieure du rabat introuvable"
+    box = wraps[0].bounding_box()
+    half = v.base_size / 2
+    # Replié à 90°, le rabat part de l'extérieur de la tranche et va vers la gauche
+    tip = half + v.material_thickness + v.base_wrap_gap - v.base_wrap_length
+    assert pytest.approx(tip, abs=TOLERANCE) == box.min.X
+    assert pytest.approx(-half, abs=TOLERANCE) == box.min.Z
+    assert pytest.approx(v.base_wrap_height - half, abs=TOLERANCE) == box.max.Z
+    # La tranche est au-delà du pli du volet, du jeu en plus
+    edge = body.bounding_box().max.X
+    expected = half + wrap_radius() + v.material_thickness
+    assert pytest.approx(expected, abs=TOLERANCE) == edge
+
+
+def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
+    """Déplié à 0°, la tranche prolonge le panneau arrière et le rabat part vers l'avant."""
+    thickness, radius = v.material_thickness, v.bend_radius
+    box = open_wrap.bounding_box()
+    # Le 2e pli reste à 90° : le rabat part vers l'avant, de la face arrière du pli
+    reach = v.base_size / 2 + wrap_wall_length() + radius + thickness
+    front = (len(v.dials) + 1) * thickness - radius - v.base_wrap_length
+    # À 0,01° près : le pli ne peut pas être nul, ce qui dévie le bout du rabat
+    assert pytest.approx(reach, abs=0.1) == box.max.X
+    assert pytest.approx(front, abs=0.1) == box.min.Y
 
 
 def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:

@@ -42,6 +42,10 @@ base_cover_length = base_size / 2  # longueur du volet, depuis le bord droit du 
 base_cover_disc_diam = 91  # diamètre du disque du volet, centré sur le rivet
 base_cover_teeth_step = 3  # pas angulaire des dents, en ° (≈ 2 mm)
 base_cover_teeth_depth = 0.75  # profondeur des dents de l'arc du disque
+base_wrap_height = base_size / 2  # hauteur du rabat qui contourne la tranche droite
+base_wrap_length = 180  # longueur du rabat replié sur la face avant, après la tranche
+base_wrap_angle = 90  # angle du 1er pli du rabat, côté panneau arrière (le 2e reste à 90°)
+base_wrap_gap = 0.5  # jeu entre le rabat et le volet qu'il recouvre
 base_strip_stop = 2.5  # largeur des butées des languettes, de part et d'autre de la tête
 base_strip_clearance = 0  # jeu entre la tête des languettes et des fenêtres
 
