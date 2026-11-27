@@ -58,10 +58,13 @@ def flap_pocket(flap_start: float, end: float, depth: float) -> Sketch:
     half = radians((end - flap_start) / 2)
     mid = radians((flap_start + end) / 2)
     outer = v.dial_disc_diam / 2
-    hinge, width = outer * cos(half), outer * sin(half)
+    slope = sin(half) / cos(half)  # demi-largeur du secteur par unité de rayon
+    hinge = outer * cos(half)
+    width = outer * sin(half) - v.dial_flap_gap  # la pliure est retirée à chaque bout
     length, reach = flap_span(depth)
-    bend = length - reach  # distance de la charnière où le bout commence à rétrécir
-    tip = (hinge - reach) * sin(half) / cos(half)  # demi-largeur au bout de la languette
+    # Le bout rabattu rétrécit dès que le secteur devient plus étroit que la languette
+    bend = max(0, length - reach + v.dial_flap_gap / slope)
+    tip = min(width, (hinge - reach) * slope)  # demi-largeur au bout de la languette
     outline = [
         (0, width),
         (bend, width),
@@ -188,7 +191,7 @@ def dial_sheet(
                 edge,
                 v.dial_flap_depth + flap_extra,
                 -90,
-                gaps=0,
+                gaps=v.dial_flap_gap,
                 length_from=LengthFrom.INNER_SHARP,
             )
             # Second pli : le bout de la languette est rabattu vers le centre du cadran
