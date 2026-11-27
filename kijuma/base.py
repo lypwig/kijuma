@@ -211,10 +211,11 @@ def base() -> Part:
                     )
                     Rectangle(*window, mode=Mode.SUBTRACT)
         thicken()
-        for x, edge_y, width in necks:
-            insert(strip_neck(spacing, x, edge_y, width))
 
-    part = builder.part
+    # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
+    # du panneau arrière quand le jeu est nul, et son contour disparaîtrait.
+    heads = [strip_neck(spacing, *neck) - builder.part for neck in necks]
+    part = Part([builder.part, *heads])
     part.label = v.base[0]
     part.color = Color(v.base[1])
     return part

@@ -11,7 +11,7 @@ tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, e
 # === Assemblage ===
 
 animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
-assembly_label = "Assemblage"
+assembly_label = "Kijuma"
 dials_label = "Cadrans"  # label du groupe contenant les cadrans
 rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
 base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
@@ -31,7 +31,7 @@ base_view_width = 10  # largeur de la fenêtre en arc de cercle
 base_left_strip_width = 15  # largeur de la base de la languette de gauche
 base_right_strip_width = 20  # largeur de la base de la languette de droite
 base_strip_stop = 2.5  # largeur des butées des languettes, de part et d'autre de la tête
-base_strip_clearance = 0.1  # jeu entre la tête des languettes et des fenêtres
+base_strip_clearance = 0  # jeu entre la tête des languettes et des fenêtres
 
 # === Cadran ===
 
