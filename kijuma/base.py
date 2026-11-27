@@ -14,7 +14,6 @@ from . import utils as u
 from . import values as v
 
 base_view_angle = len(v.dials) * v.dial_tab_step
-base_left_strip_pos = 10  # position horiz. du centre de la languette depuis le bord gauche
 
 
 def front_cutter() -> Sketch:
@@ -48,6 +47,12 @@ def left_strip_edge_y() -> float:
     """Construit la hauteur du bord de la languette de gauche."""
     # Le bord est à hauteur du bas de la fenêtre, tangent à son congé : pas de ressaut.
     return window_bottom()[1]
+
+
+def left_strip_pos() -> float:
+    """Construit l'abscisse du centre de la languette de gauche."""
+    # Centrée sur la partie plate du bord, entre le congé du coin et celui de la fenêtre.
+    return (-v.base_size / 2 + v.fillet + window_bottom()[0]) / 2
 
 
 def view_tip() -> Sketch:
@@ -121,7 +126,6 @@ def base() -> Part:
     spacing = v.base_play + len(v.dials) * v.material_thickness - 2 * radius
     # Languettes (x du centre, y du bord, hauteur de l'échancrure, largeur) : à droite juste
     # sous l'axe du cadran, à gauche sur le bord plat laissé sous la pointe de la fenêtre
-    left = base_left_strip_pos - v.base_size / 2
     strips = [
         (
             u.base_right_strip_pos,
@@ -129,7 +133,7 @@ def base() -> Part:
             u.base_right_strip_drop,
             v.base_right_strip_width,
         ),
-        (left, left_strip_edge_y(), 0, v.base_left_strip_width),
+        (left_strip_pos(), left_strip_edge_y(), 0, v.base_left_strip_width),
     ]
     necks = []
 
