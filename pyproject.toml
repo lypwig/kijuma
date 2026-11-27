@@ -1,6 +1,6 @@
 [project]
 name = "kijuma"
-version = "0.1.0"
+version = "0.2.0"
 description = "Kit de jugement majoritaire"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,7 +14,7 @@ dev = [
     "basedpyright",
     "cadquery-ocp",
     "ocp-viewer",
-    "pytest>=9.2.0",
+    "pytest",
     "ruff",
     "ty",
     "watchfiles",
