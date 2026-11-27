@@ -1,10 +1,12 @@
 """Vérifie que la tôle des cadrans, une fois dépliée, ne se superpose pas."""
 
+from math import hypot
+
 import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.dial import dial_sheet, flap_angles, flap_pocket
+from kijuma.dial import dial, dial_sheet, flap_angles, flap_pocket, flap_teeth_points
 
 AREA_TOLERANCE = 1e-3  # mm²
 
@@ -46,3 +48,29 @@ def test_pocket_is_covered_by_flap(index: int) -> None:
     footprint = pocket.face().moved(Location(origin))
     covered = sum((footprint & f).area for f in flap)
     assert footprint.area - covered < AREA_TOLERANCE
+
+
+TOLERANCE = 0.01  # mm
+
+
+@pytest.mark.parametrize("index", range(len(v.dials)))
+def test_flap_tip_has_teeth(index: int) -> None:
+    """Le bout rabattu de la languette intérieure de chaque cadran est denté."""
+    extra = (len(v.dials) - 1 - index) * v.material_thickness
+    start, end = flap_angles(index * v.dial_slot_step)
+    depth = v.dial_flap_depth + extra
+    points = flap_teeth_points(start, end, depth)
+    part = dial(index * v.dial_tab_step, index * v.dial_slot_step, extra)
+    # Le bout rabattu est la face la plus avancée : la tôle y est à `depth + 2 e + r`
+    tip_y = -(depth + 2 * v.material_thickness + v.bend_radius)
+    # Un côté de dent va du sommet au creux, un demi-pas plus loin et plus profond
+    side = hypot(v.dial_flap_teeth_step / 2, v.dial_flap_teeth_depth)
+    sides = [
+        e
+        for e in part.edges()
+        if e.geom_type == GeomType.LINE
+        and pytest.approx(tip_y, abs=TOLERANCE) == e.center().Y
+        and pytest.approx(side, abs=TOLERANCE) == e.length
+    ]
+    assert points
+    assert len(sides) == len(points) - 1

@@ -1,6 +1,6 @@
 """Construit le cadran servant à afficher le profil de mérite."""
 
-from math import cos, hypot, radians, sin
+from math import cos, floor, hypot, radians, sin, tan
 
 from build123d import *
 
@@ -87,6 +87,50 @@ def flap_pocket(flap_start: float, end: float, depth: float) -> Sketch:
     with BuildSketch() as sketch:
         Polygon(*points, align=None)
     return sketch.sketch_local
+
+
+def flap_teeth_points(start: float, end: float, depth: float) -> list[tuple[float, float]]:
+    """Retourne les points (abscisse, profondeur) du zigzag des dents du bout rabattu."""
+    # Le bout rabattu est un segment perpendiculaire à la direction médiane du secteur,
+    # à la distance `charnière - retrait` du centre, aussi large que le secteur à ce rayon
+    _, half, hinge = flap_hinge(start, end)
+    _, reach = flap_span(depth)
+    width = 2 * (hinge - reach) * tan(half)
+    step, tooth = v.dial_flap_teeth_step, v.dial_flap_teeth_depth
+    # Dents entières, centrées : il reste au moins un demi-pas lisse à chaque bout
+    count = max(0, floor(width / step) - 1)
+    points = []
+    for i in range(count):
+        points += [((i - count / 2) * step, 0), ((i + 0.5 - count / 2) * step, tooth)]
+    return [*points, ((count / 2) * step, 0)] if count else []
+
+
+def flap_teeth(start: float, end: float, depth: float) -> Part | None:
+    """Construit la matière à retirer du bout de la languette pour y faire des dents."""
+    points = flap_teeth_points(start, end, depth)
+    if not points:
+        return None
+    mid, _, hinge = flap_hinge(start, end)
+    radius = hinge - flap_span(depth)[1]  # distance du bout de la languette au centre
+
+    # Les dents sont creusées vers la charnière, le zigzag est refermé côté extérieur
+    def place(offset: float, across: float) -> tuple[float, float]:
+        along = radius + offset
+        return (
+            along * cos(mid) - across * sin(mid),
+            along * sin(mid) + across * cos(mid),
+        )
+
+    zigzag = [place(tooth, across) for across, tooth in points]
+    outline = zigzag + [place(-1, across) for across, _ in reversed(points)]
+    # Le bout rabattu est la tôle la plus éloignée du cadran : on ne coupe que là
+    thickness = v.material_thickness
+    top = depth + thickness + v.bend_radius - 0.5
+    with BuildPart() as builder:
+        with BuildSketch(Plane.XZ.offset(top)):
+            Polygon(*outline, align=None)
+        extrude(amount=thickness + 1)
+    return builder.part
 
 
 def flap_clip(start: float, end: float) -> Part:
@@ -208,6 +252,9 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
     # La tôle est construite côté +Y : on la retourne pour que la languette soit à l'avant
     # Le bout rabattu est ensuite taillé en trapèze, selon les côtés radiaux du secteur
     part = Part(sheet_part.mirror(Plane.XZ) - flap_clip(flap_start, slot_length))
+    teeth = flap_teeth(flap_start, slot_length, v.dial_flap_depth + flap_extra)
+    if teeth is not None:
+        part = Part(part - teeth)
     part.label = "Dial"
     part.color = Color(0, 0.5, 0.5)
     return part
