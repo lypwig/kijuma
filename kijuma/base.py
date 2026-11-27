@@ -20,10 +20,13 @@ MIN_BEND_ANGLE = 0.01  # angle minimal d'un pli, en °, car un pli de 0° est re
 
 
 def front_cutter() -> Sketch:
-    """Construit l'esquisse à retirer du panneau avant : moitié haute, disque et fente."""
+    """Construit l'esquisse à retirer du panneau avant : moitié haute, bande et disque."""
     with BuildSketch() as sketch:
         align = (Align.CENTER, Align.MIN)
         Rectangle(v.base_size, v.base_size / 2, align=align)
+        # Bande du bord droit, pour enfoncer le pli du volet dans le socle
+        with Locations((v.base_size / 2 - u.cover_inset / 2 + 0.5, 0)):
+            Rectangle(u.cover_inset + 1, v.base_size + 2)
         Circle(u.disc_radius, mode=Mode.SUBTRACT, align=None)
         with BuildSketch(Rotation(90, 0, 0)):
             Circle(u.disc_radius, u.base_slot_angle, align=None)
@@ -160,9 +163,9 @@ def cover_angle() -> float:
 
 def unfold_cover[T: Shape](shape: T) -> T:
     """Fait pivoter une pièce du volet, construite repliée à 180°, à son angle de pli."""
-    # Le pli est vertical, à l'angle du bord droit du panneau avant : son centre est à
-    # `bend_radius` devant la face avant (y = 0)
-    axis = Axis((v.base_size / 2, -v.bend_radius, 0), (0, 0, 1))
+    # Le pli est vertical, à l'angle du bord droit du panneau avant, enfoncé dans le socle :
+    # son centre est à `bend_radius` devant la face avant (y = 0)
+    axis = Axis((v.base_size / 2 - u.cover_inset, -v.bend_radius, 0), (0, 0, 1))
     return shape.rotate(axis, 180 - cover_angle())
 
 
@@ -178,34 +181,32 @@ def bottom_gaps(edge: Edge, height: float) -> tuple[float, float]:
 
 def fold_cover(sheet: BuildSheet) -> None:
     """Plie le bord droit du panneau avant, vu de face, vers l'avant, à son angle."""
-    edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, 0))[0]
+    target = v.base_size / 2 - u.cover_inset, 0, 0
+    edge = sheet.rims().filter_by(Axis.Y).sort_by_distance(target)[0]
     gaps = bottom_gaps(edge, v.base_cover_height)
-    flange(edge, v.base_cover_length, cover_angle(), gaps=gaps)
+    # La longueur est mesurée depuis le bord du socle : le bout reste à la même place
+    flange(edge, v.base_cover_length - u.cover_inset, cover_angle(), gaps=gaps)
 
 
-def wrap_angle() -> float:
-    """Retourne l'angle du 1er pli du rabat en degrés, jamais nul (0° est refusé)."""
-    return max(v.base_wrap_angle, MIN_BEND_ANGLE)
-
-
-def wrap_radius() -> float:
-    """Retourne le rayon intérieur du 1er pli du rabat, qui contourne le pli du volet."""
-    # La tranche du rabat passe à l'extérieur du pli du volet, et du jeu
-    return v.bend_radius + v.material_thickness + v.base_wrap_gap
+def wrap_bend_angle() -> float:
+    """Retourne l'angle de chacun des 2 plis du rabat en degrés, jamais nul."""
+    # Le paramètre est l'angle du rabat entier : 180° replié, 0° à plat. Un pli de 0° est
+    # refusé.
+    return max(v.base_wrap_angle / 2, MIN_BEND_ANGLE)
 
 
 def wrap_wall_length() -> float:
     """Retourne la longueur droite de la tranche du rabat, entre ses deux plis."""
-    # Replié à 90°, le rabat va de la face avant du panneau arrière jusqu'au volet : il
-    # fait l'épaisseur du socle, hors panneau avant (rayons et jeu s'annulent)
-    return (len(v.dials) + 1) * v.material_thickness
+    # Replié, le rabat va de la face avant du panneau arrière jusqu'à devant le volet : il
+    # fait l'épaisseur du socle, plus le jeu avec le volet
+    return (len(v.dials) + 2) * v.material_thickness + v.base_wrap_gap
 
 
 def wrap_wall_end() -> tuple[float, float]:
     """Retourne la position (x, y) du bout de la tranche, sur son plan moyen."""
-    thickness, radius = v.material_thickness, wrap_radius()
+    thickness, radius = v.material_thickness, v.bend_radius
     # Le pli tourne autour d'un centre devant la face avant du panneau arrière
-    angle = radians(wrap_angle())
+    angle = radians(wrap_bend_angle())
     center = v.base_size / 2, (len(v.dials) + 1) * thickness - radius
     reach = radius + thickness / 2
     start = center[0] + reach * sin(angle), center[1] + reach * cos(angle)
@@ -214,15 +215,14 @@ def wrap_wall_end() -> tuple[float, float]:
 
 
 def unfold_wrap[T: Shape](shape: T) -> T:
-    """Fait pivoter une pièce du rabat, construite repliée à 90°, à l'angle de ses plis."""
+    """Fait pivoter une pièce du rabat, construite repliée, à l'angle de ses plis."""
     # Les deux plis sont verticaux. Le 2e pivote d'abord, autour de son centre, puis le
     # 1er emporte la tranche et le rabat autour de son propre centre.
     thickness, radius, half = v.material_thickness, v.bend_radius, v.base_size / 2
-    first = Axis((half, (len(v.dials) + 1) * thickness - wrap_radius(), 0), (0, 0, 1))
-    inner_x = half + wrap_radius()
-    flap_y = -(2 * radius + thickness + v.base_wrap_gap)  # face intérieure du rabat
-    second = Axis((inner_x - radius, flap_y + radius, 0), (0, 0, 1))
-    delta = 90 - wrap_angle()
+    first = Axis((half, (len(v.dials) + 1) * thickness - radius, 0), (0, 0, 1))
+    # Replié, le 2e pli est contre l'extérieur du pli du volet, devant le rabat
+    second = Axis((half, -(radius + thickness + v.base_wrap_gap), 0), (0, 0, 1))
+    delta = 90 - wrap_bend_angle()
     return shape.rotate(second, delta).rotate(first, delta)
 
 
@@ -230,9 +230,9 @@ def fold_wrap(sheet: BuildSheet) -> None:
     """Plie le bord droit du panneau arrière vers l'avant, puis sur la face avant."""
     back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, back_z))[0]
-    angle = wrap_angle()
+    angle = wrap_bend_angle()
     gaps = bottom_gaps(edge, v.base_wrap_height)
-    flange(edge, wrap_wall_length(), -angle, wrap_radius(), gaps)
+    flange(edge, wrap_wall_length(), -angle, gaps=gaps)
     # Le 2e pli est sur le bout de la tranche, de la même hauteur et du même angle
     x, y = wrap_wall_end()
     end = sheet.rims().filter_by(Axis.Y).sort_by_distance((x, 0, -y))[0]
@@ -371,7 +371,7 @@ def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
         for angle in (u.base_slot_angle, 0)
         for p in u.polar_vertices(corners, angle, u.slot_radii)
     ]
-    skipped += u.point_vertices(corners, [(v.base_size / 2, 0)])
+    skipped += u.point_vertices(corners, [(v.base_size / 2 - u.cover_inset, 0)])
     return [p for p in corners if p not in skipped]
 
 

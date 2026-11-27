@@ -7,7 +7,7 @@ from build123d import *
 
 from kijuma import utils as u
 from kijuma import values as v
-from kijuma.base import base, cover_teeth_points, wrap_radius, wrap_wall_length
+from kijuma.base import base, cover_teeth_points, wrap_wall_length
 
 TOLERANCE = 0.01  # mm ou degrés
 FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face orientée selon X
@@ -133,7 +133,8 @@ def test_cover_is_folded_over_front_face(body: Solid) -> None:
     assert len(covers) == 1, "face extérieure du volet introuvable"
     box = covers[0].bounding_box()
     disc = v.base_cover_disc_diam / 2
-    assert pytest.approx(v.base_size / 2, abs=TOLERANCE) == box.max.X
+    # Le pli du volet est enfoncé dans le socle, pour laisser passer le rabat
+    assert pytest.approx(v.base_size / 2 - u.cover_inset, abs=TOLERANCE) == box.max.X
     assert pytest.approx(-v.base_size / 2, abs=TOLERANCE) == box.min.Z
     # Le disque déborde du volet, à gauche et en haut, autour du rivet à l'origine
     assert pytest.approx(-disc, abs=TOLERANCE) == box.min.X
@@ -155,9 +156,10 @@ def test_cover_has_rivet_hole(body: Solid) -> None:
 
 def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
     """Déplié à 90°, le volet part vers l'avant, avec son disque et son trou du rivet."""
-    # Le rivet est à la distance `base_size / 2` du pli, le disque le déborde de son rayon
+    # Le rivet est à la distance `base_size / 2` du pli, moins son enfoncement, et le disque
+    # le déborde de son rayon
     # et le centre du pli est à `bend_radius` devant la face avant.
-    rivet_y = -(v.bend_radius + v.base_size / 2)
+    rivet_y = -(v.bend_radius + v.base_size / 2 - u.cover_inset)
     disc = v.base_cover_disc_diam / 2
     assert pytest.approx(rivet_y - disc, abs=TOLERANCE) == open_cover.bounding_box().min.Y
     holes = [
@@ -188,16 +190,26 @@ def test_wrap_is_folded_over_cover(body: Solid) -> None:
     assert len(wraps) == 1, "face extérieure du rabat introuvable"
     box = wraps[0].bounding_box()
     half, disc = v.base_size / 2, v.dial_disc_diam / 2
-    # Replié à 90°, le rabat part de l'extérieur de la tranche et va vers la gauche, le
-    # disque débordant au-delà de son bout et de son bord haut
-    tip = half + v.material_thickness + v.base_wrap_gap - v.base_wrap_length
+    # Replié, le rabat part de la tranche et va vers la gauche, le disque débordant au-delà
+    # de son bout et de son bord haut
+    tip = half - v.base_wrap_length
     assert pytest.approx(min(tip, -disc), abs=TOLERANCE) == box.min.X
     assert pytest.approx(-half, abs=TOLERANCE) == box.min.Z
     assert pytest.approx(max(v.base_wrap_height - half, disc), abs=TOLERANCE) == box.max.Z
-    # La tranche est au-delà du pli du volet, du jeu en plus
+    # La tranche contourne le bord, avec le même rayon de pli que les autres plis
     edge = body.bounding_box().max.X
-    expected = half + wrap_radius() + v.material_thickness
+    expected = half + v.bend_radius + v.material_thickness
     assert pytest.approx(expected, abs=TOLERANCE) == edge
+    walls = [
+        f
+        for f in body.faces()
+        if f.geom_type == GeomType.PLANE
+        and f.normal_at().X > FLAT_NORMAL
+        and pytest.approx(expected, abs=TOLERANCE) == f.center().X
+    ]
+    assert len(walls) == 1, "face extérieure de la tranche introuvable"
+    wall = walls[0].bounding_box()
+    assert pytest.approx(wrap_wall_length(), abs=TOLERANCE) == wall.max.Y - wall.min.Y
 
 
 def test_wrap_has_disc_and_rivet_head_hole(body: Solid) -> None:
@@ -224,8 +236,7 @@ def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
     assert pytest.approx(reach, abs=0.1) == box.max.X
     assert pytest.approx(-u.cover_offset, abs=0.1) == box.min.Y
     # Le trou du rivet suit le rabat : il est dans son plan, au bout de la tranche
-    center = v.base_size / 2 + wrap_wall_length() + v.base_size / 2 + wrap_radius()
-    center -= v.bend_radius
+    center = v.base_size + wrap_wall_length()
     holes = [
         e
         for e in open_wrap.edges()
