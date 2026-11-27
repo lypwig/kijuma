@@ -88,12 +88,14 @@ def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
     """Retourne les sommets du panneau avant à arrondir, sauf au bas de la fenêtre."""
     min_pos, max_pos = -v.base_size / 2 + 1, v.base_size
     corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
-    window_bottom = u.polar_vertices(
-        corners,
-        180 + len(v.dials) * v.dial_slot_step,
-        (v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width),
-    )
-    return [p for p in corners if p not in window_bottom]
+    radii = v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width
+    # Pas de congé au bas de la fenêtre, ni à droite du disque intérieur (début de la fente)
+    skipped = [
+        p
+        for angle in (180 + len(v.dials) * v.dial_slot_step, 0)
+        for p in u.polar_vertices(corners, angle, radii)
+    ]
+    return [p for p in corners if p not in skipped]
 
 
 def strip_fit(edge: Edge, x: float, width: float) -> tuple[float, float]:
@@ -185,8 +187,13 @@ def base() -> Part:
                 # Le panneau avant est échancré pour abaisser la bande sous son bord
                 if notch_height:
                     notch_pos = x, edge_y + notch_height / 2
+                    # Même largeur que l'entaille des cadrans, pour aligner les congés
+                    half = width / 2 + v.dial_notch_size
                     with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
-                        Rectangle(width, notch_height)
+                        Rectangle(2 * half, notch_height)
+                    # Congés des coins du panneau qui bordent l'entrée de l'échancrure
+                    mouth = [(x + s * half, edge_y + notch_height) for s in (-1, 1)]
+                    fillet(u.point_vertices(sheet.vertices(), mouth), v.light_fillet)
 
                 # Bande pliée vers l'arrière depuis le bord libre.
                 # Sa base vient en butée contre le panneau arrière, sa tête traverse la

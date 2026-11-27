@@ -4,6 +4,7 @@
 
 material_thickness = 1  # épaisseur du carton, en mm
 fillet = 2.5  # rayon des arrondis des angles
+light_fillet = 0.75  # rayon des petits arrondis (rivet, entailles, languettes)
 bend_radius = 0.5  # rayon de courbure intérieur des pliages
 tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, en mm
 
@@ -44,7 +45,7 @@ dial_slot_width = 3  # largeur de la fente en arc de cercle du disque central
 dial_slot_step = 18  # décalage de l'angle de la fente d'un cadran au suivant, en °
 dial_flap_depth = 0.6  # hauteur de la languette pliée vers l'avant, depuis le cadran
 dial_flap_fold = 5  # longueur du bout de la languette rabattu vers le centre
-dial_notch_size = 0.25, 0.25  # jeux entre l'entaille cadran et la languette
+dial_notch_size = 0.25  # jeu entre l'entaille cadran et la languette
 
 # === Fixations ===
 

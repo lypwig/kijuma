@@ -85,14 +85,22 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
                 # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
+                half = v.base_right_strip_width / 2 + v.dial_notch_size
                 with Locations((u.base_right_strip_pos, 0), (-u.base_right_strip_pos, 0)):
                     align = (Align.CENTER, Align.MAX)
                     Rectangle(
-                        v.base_right_strip_width + v.dial_notch_size[0] * 2,
-                        u.base_right_strip_drop + v.dial_notch_size[1],
+                        2 * half,
+                        u.base_right_strip_drop,
                         align=align,
                         mode=Mode.SUBTRACT,
                     )
+                # Congés des coins du bord plat qui bordent l'entrée des entailles
+                notch_corners = [
+                    (sign * u.base_right_strip_pos + side * half, 0)
+                    for sign in (-1, 1)
+                    for side in (-1, 1)
+                ]
+                fillet(u.point_vertices(sketch.vertices(), notch_corners), v.light_fillet)
 
                 with Locations((v.dial_diam / 2 - v.dial_stop_loc, 0)):
                     SlotOverall(*v.dial_stop_size)

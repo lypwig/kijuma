@@ -11,7 +11,9 @@ def rivet(length: float = 8) -> Part:
     """Construit le rivet qui maintient les cadrans au socle."""
     with BuildPart() as builder:
         align = (Align.CENTER, Align.CENTER, Align.MIN)
-        Cylinder(v.rivet_head[0] / 2, v.rivet_head[1], align=align)
+        head = Cylinder(v.rivet_head[0] / 2, v.rivet_head[1], align=align)
+        top = head.edges().filter_by_position(Axis.Z, v.rivet_head[1] - 0.1, 10)
+        fillet(top.filter_by(GeomType.CIRCLE), v.light_fillet)
         Cylinder(v.rivet_diam / 2, length, align=(Align.CENTER, Align.CENTER, Align.MAX))
 
     part = builder.part
