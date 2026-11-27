@@ -73,7 +73,7 @@ def support_trim() -> Part:
     height, length = v.base_support_height, v.base_support_length
     tilt = radians(v.base_support_tilt)
     # Face arrière du panneau arrière, et bas de son bord gauche
-    back_y = v.base_play + (len(v.dials) + 2) * v.material_thickness
+    back_y = (len(v.dials) + 2) * v.material_thickness
     bottom = -v.base_size / 2
     # Coins du bout : le haut est à la distance perpendiculaire `height * cos(tilt)`
     far_bottom = back_y + length, bottom + length * tan(tilt)
@@ -134,6 +134,19 @@ def fold_sides(sheet: BuildSheet) -> None:
     """Plie les côtés du socle : la patte du support et le volet de la face avant."""
     fold_support(sheet)
     fold_cover(sheet)
+
+
+def add_cover_disc(body: Compound) -> Compound:
+    """Ajoute au volet le disque centré sur le rivet, percé du trou du rivet."""
+    thickness = v.material_thickness
+    # Le volet est replié à `bend_radius * 2` de la face avant du panneau avant (y = 0)
+    plane = Plane.XZ.offset(2 * v.bend_radius)
+    center = Align.CENTER, Align.CENTER
+    with BuildPart() as disc, Locations(plane):
+        Cylinder(v.base_cover_disc_diam / 2, thickness, align=(*center, Align.MIN))
+    with BuildPart() as hole, Locations(plane.offset(-1)):
+        Cylinder(v.rivet_diam / 2, thickness + 2, align=(*center, Align.MIN))
+    return Compound(body + disc.part - hole.part)
 
 
 def view_tip() -> Sketch:
@@ -225,7 +238,7 @@ def base() -> Part:
     """Construit la pièce correspondant au socle."""
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
-    spacing = v.base_play + len(v.dials) * v.material_thickness - 2 * radius
+    spacing = len(v.dials) * v.material_thickness - 2 * radius
     necks = []
 
     with BuildPart() as builder:
@@ -301,7 +314,7 @@ def base() -> Part:
 
     # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
     # du panneau arrière quand le jeu est nul, et son contour disparaîtrait.
-    body = builder.part - support_trim()
+    body = add_cover_disc(builder.part - support_trim())
     part = Part([body, *(strip_neck(spacing, *neck) - body for neck in necks)])
     part.label = v.base[0]
     part.color = Color(v.base[1])

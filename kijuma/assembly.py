@@ -2,6 +2,7 @@
 
 from build123d import *
 
+from . import utils as u
 from . import values as v
 from .base import base
 from .dial import dial
@@ -28,8 +29,8 @@ def assembly() -> Compound:
     screw_part = rivet(v.rivet_length)
     thickness = v.material_thickness
 
-    # Socle : siège de la vis sur la face avant de la 1ère tôle (y = 0), axe Z vers -Y
-    RigidJoint("screw_seat", base_part, Location((0, 0, 0), (90, 0, 0)))
+    # Socle : siège de la vis sur la face avant du volet, axe Z vers -Y
+    RigidJoint("screw_seat", base_part, Location((0, -u.cover_offset, 0), (90, 0, 0)))
     # Rivet : repère sous la tête
     RigidJoint("seat", screw_part, Location((0, 0, 0)))
 
@@ -39,8 +40,9 @@ def assembly() -> Compound:
         dial_part = dial(i * v.dial_tab_step, i * v.dial_slot_step, flap_extra)
         dial_part.label = label
         dial_part.color = Color(*color)
-        # Rivet : pivot du cadran, une épaisseur de tôle + un cadran par rang sous la tête
-        axis = Axis((0, 0, -(i + 1) * thickness), (0, 0, 1))
+        # Rivet : pivot du cadran, sous la tête : volet, panneau avant, un cadran par rang
+        depth = u.cover_offset + (i + 1) * thickness
+        axis = Axis((0, 0, -depth), (0, 0, 1))
         RevoluteJoint(f"pivot {i + 1}", screw_part, axis=axis)
         # Cadran : repère sur sa face avant (y = -épaisseur), axe Z vers -Y
         RigidJoint("pivot", dial_part, Location((0, -thickness, 0), (90, 0, 0)))

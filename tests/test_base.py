@@ -88,7 +88,7 @@ def test_support_length(outline: list[Edge]) -> None:
 
 
 def test_cover_is_folded_over_front_face() -> None:
-    """Le volet recouvre la face avant, avec la hauteur et la longueur voulues."""
+    """Le volet recouvre la face avant, du bas du panneau et jusqu'au disque du rivet."""
     body = max(base().solids(), key=lambda s: s.volume)
     front_y = -v.material_thickness  # le panneau avant occupe y de 0 à l'épaisseur
     covers = [
@@ -100,7 +100,23 @@ def test_cover_is_folded_over_front_face() -> None:
     ]
     assert len(covers) == 1, "face extérieure du volet introuvable"
     box = covers[0].bounding_box()
-    assert pytest.approx(v.base_cover_length, abs=TOLERANCE) == box.max.X - box.min.X
-    assert pytest.approx(v.base_cover_height, abs=TOLERANCE) == box.max.Z - box.min.Z
+    disc = v.base_cover_disc_diam / 2
     assert pytest.approx(v.base_size / 2, abs=TOLERANCE) == box.max.X
     assert pytest.approx(-v.base_size / 2, abs=TOLERANCE) == box.min.Z
+    # Le disque déborde du volet, à gauche et en haut, autour du rivet à l'origine
+    assert pytest.approx(-disc, abs=TOLERANCE) == box.min.X
+    assert pytest.approx(disc, abs=TOLERANCE) == box.max.Z
+
+
+def test_cover_has_rivet_hole() -> None:
+    """Le volet est percé d'un trou du diamètre du rivet, centré sur l'origine."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    holes = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(v.rivet_diam / 2, abs=TOLERANCE) == e.radius
+        and pytest.approx(0, abs=TOLERANCE) == e.arc_center.X
+        and e.arc_center.Y < 0
+    ]
+    assert holes, "trou du rivet introuvable dans le volet"

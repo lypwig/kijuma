@@ -21,6 +21,9 @@ base_slot_angle = (
 base_right_strip_pos = (v.dial_disc_diam + v.dial_diam) / 4
 base_right_strip_drop = (v.material_thickness + v.bend_radius) / 2  # abaissement languette
 
+# Distance de la face avant du volet à celle du panneau avant, une fois le volet replié
+cover_offset = 2 * v.bend_radius + v.material_thickness
+
 
 def notch_half(strip_width: float) -> float:
     """Retourne la demi-largeur de l'entaille qui reçoit une languette de cette largeur."""

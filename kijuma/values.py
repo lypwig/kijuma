@@ -26,7 +26,6 @@ dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
 # === Socle ===
 
 base_size = 210  # largeur et hauteur du socle
-base_play = 1  # jeu à laisser entre les panneaux avant et arrière
 base_view_width = 10  # largeur de la fenêtre en arc de cercle
 base_left_strip_width = 15  # largeur de la base de la languette de gauche
 base_right_strip_width = 20  # largeur de la base de la languette de droite
@@ -34,7 +33,8 @@ base_support_height = 60  # hauteur verticale de la patte du support, sur le cô
 base_support_length = 120  # longueur horizontale de la patte, depuis le panneau arrière
 base_support_tilt = 20  # inclinaison du socle, vers l'arrière, une fois posé sur le support
 base_cover_height = base_size / 2  # hauteur du volet replié sur la face avant, côté droit
-base_cover_length = 160  # longueur du volet, depuis le bord droit du panneau avant
+base_cover_length = base_size / 2  # longueur du volet, depuis le bord droit du panneau
+base_cover_disc_diam = 85  # diamètre du disque du volet, centré sur le rivet
 base_strip_stop = 2.5  # largeur des butées des languettes, de part et d'autre de la tête
 base_strip_clearance = 0  # jeu entre la tête des languettes et des fenêtres
 
@@ -56,5 +56,6 @@ dial_notch_size = 0.25  # jeu entre l'entaille cadran et la languette
 # === Fixations ===
 
 rivet_diam = 5  # diamètre de la tige du rivet, et des trous qui la reçoivent
-rivet_length = (2 + len(dials)) * material_thickness + base_play + 1  # longueur du rivet
+# Longueur du rivet : volet, panneaux, cadrans, jeu et dépassement
+rivet_length = (3 + len(dials)) * material_thickness + 2 * bend_radius + 1
 rivet_head = 8, 1  # diamètre et épaisseur de la tête du rivet
