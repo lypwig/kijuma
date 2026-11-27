@@ -101,19 +101,23 @@ def flap_clip(start: float, end: float) -> Part:
     return builder.part
 
 
-def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
-    """
-    Construit le cadran configuré pour l'angle de languette donné.
-
-    La fente en arc de cercle démarre toujours à 0°, comme la fenêtre du panneau avant,
-    et son extrémité est prolongée de `slot_extra` degrés. Une languette est pliée vers
-    l'avant au bout de la fente : sa place est prise sur la fente, d'où l'allongement.
-    Son bout est lui-même replié vers le centre du cadran ; `flap_extra` allonge la
-    languette pour compenser l'épaisseur des cadrans placés devant, de sorte que ce
-    second pli soit au même niveau pour tous les cadrans.
-    """
+def flap_angles(slot_extra: float) -> tuple[float, float]:
+    """Retourne les angles du début et de la fin de la fenêtre de la languette."""
     slot_length = 180 + slot_extra + v.dial_slot_step
-    flap_start = slot_length - v.dial_slot_step
+    return slot_length - v.dial_slot_step, slot_length
+
+
+def dial_sheet(
+    tab_angle: int,
+    slot_extra: float = 0,
+    flap_extra: float = 0,
+) -> tuple[Part, BuildSheet]:
+    """
+    Construit la tôle du cadran, côté +Y et avant le taillage du bout de la languette.
+
+    Retourne la pièce épaissie et la tôle de référence, que l'on peut déplier.
+    """
+    flap_start, slot_length = flap_angles(slot_extra)
     thickness, radius = v.material_thickness, v.bend_radius
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
@@ -191,10 +195,26 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
             tip = sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0]
             flange(tip, v.dial_flap_fold, 90)
         thicken()
+    return builder.part, sheet
+
+
+def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
+    """
+    Construit le cadran configuré pour l'angle de languette donné.
+
+    La fente en arc de cercle démarre toujours à 0°, comme la fenêtre du panneau avant,
+    et son extrémité est prolongée de `slot_extra` degrés. Une languette est pliée vers
+    l'avant au bout de la fente : sa place est prise sur la fente, d'où l'allongement.
+    Son bout est lui-même replié vers le centre du cadran ; `flap_extra` allonge la
+    languette pour compenser l'épaisseur des cadrans placés devant, de sorte que ce
+    second pli soit au même niveau pour tous les cadrans.
+    """
+    flap_start, slot_length = flap_angles(slot_extra)
+    sheet_part, _ = dial_sheet(tab_angle, slot_extra, flap_extra)
 
     # La tôle est construite côté +Y : on la retourne pour que la languette soit à l'avant
     # Le bout rabattu est ensuite taillé en trapèze, selon les côtés radiaux du secteur
-    part = Part(builder.part.mirror(Plane.XZ) - flap_clip(flap_start, slot_length))
+    part = Part(sheet_part.mirror(Plane.XZ) - flap_clip(flap_start, slot_length))
     part.label = "Dial"
     part.color = Color(0, 0.5, 0.5)
     return part
