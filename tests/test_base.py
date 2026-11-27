@@ -78,7 +78,7 @@ def test_support_end_is_square(outline: list[Edge]) -> None:
 def test_support_length(outline: list[Edge]) -> None:
     """Le bas de la patte s'étend de la longueur voulue derrière le panneau arrière."""
     near, bottom, _, _ = lines(outline)
-    back = v.base_play + (len(v.dials) + 2) * v.material_thickness
+    back = (len(v.dials) + 2) * v.material_thickness
     # Le congé retire `fillet` de chaque côté du coin vif (angle droit)
     reach = (bottom.length + v.fillet) * cos(radians(v.base_support_tilt))
     assert near.center().Y + reach == pytest.approx(
@@ -136,10 +136,40 @@ def test_cover_left_side_goes_down_at_45_degrees() -> None:
         and abs(e.end_point().Z - e.start_point().Z) > TOLERANCE
     ]
     assert len(slanted) == 1
-    low = min(slanted[0].start_point(), slanted[0].end_point(), key=lambda p: p.X)
     run = slanted[0].end_point().X - slanted[0].start_point().X
     rise = slanted[0].end_point().Z - slanted[0].start_point().Z
     assert pytest.approx(-1, abs=TOLERANCE) == rise / run
-    # Elle part du point le plus bas du disque, à la verticale du rivet
-    assert pytest.approx(0, abs=TOLERANCE) == low.X
-    assert pytest.approx(-v.base_cover_disc_diam / 2, abs=TOLERANCE) == low.Z
+    # La droite passe par le point le plus bas du disque, à la verticale du rivet
+    point = slanted[0].start_point()
+    assert pytest.approx(-v.base_cover_disc_diam / 2, abs=TOLERANCE) == point.X + point.Z
+
+
+def test_cover_has_three_rounded_corners() -> None:
+    """Les trois angles libres du volet sont arrondis avec le rayon des angles."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    # Le trou du rivet est exclu : son centre est sur l'axe, à l'origine
+    arcs = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
+        and pytest.approx(v.fillet, abs=TOLERANCE) == e.radius
+        and v.fillet**2 < e.arc_center.X**2 + e.arc_center.Z**2
+    ]
+    assert len(arcs) == 3  # noqa: PLR2004
+
+
+def test_front_panel_corner_above_fold_is_sharp() -> None:
+    """Le coin du panneau avant en haut du pli du volet n'est pas arrondi."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    half = v.base_size / 2
+    rounded = [
+        f
+        for f in body.faces()
+        if f.geom_type == GeomType.CYLINDER
+        and half - v.fillet <= f.center().X <= half
+        and -v.fillet <= f.center().Z <= 0
+        and 0 <= f.center().Y <= v.material_thickness
+    ]
+    assert not rounded

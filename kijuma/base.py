@@ -155,7 +155,13 @@ def add_cover_disc(body: Compound) -> Compound:
         with BuildSketch(Plane.XZ.offset(thickness / 2)):
             Polygon(*below, align=None)
         extrude(amount=3 * thickness)
-    return Compound(body - cut.part + disc.part - hole.part)
+    cover = Compound(body - cut.part + disc.part - hole.part)
+    # Congés des trois angles libres du volet : disque / haut, disque / pente, pente / bas
+    y = -(2 * v.bend_radius + thickness / 2)
+    half = v.base_size / 2
+    corners = (radius, y, 0), (0, y, -radius), (half - radius, y, -half)
+    edges = [cover.edges().filter_by(Axis.Y).sort_by_distance(c)[0] for c in corners]
+    return Compound([cover.fillet(v.fillet, edges)])
 
 
 def view_tip() -> Sketch:
@@ -192,11 +198,13 @@ def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
     min_pos, max_pos = -v.base_size / 2 + 1, v.base_size
     corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
     # Pas de congé au bas de la fenêtre, ni à droite du disque intérieur (début de la fente)
+    # ni en haut du pli du volet (milieu du bord droit), où le pli commence à angle vif
     skipped = [
         p
         for angle in (u.base_slot_angle, 0)
         for p in u.polar_vertices(corners, angle, u.slot_radii)
     ]
+    skipped += u.point_vertices(corners, [(v.base_size / 2, 0)])
     return [p for p in corners if p not in skipped]
 
 
