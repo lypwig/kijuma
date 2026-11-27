@@ -15,7 +15,9 @@ VOLUME_TOLERANCE = 0.05  # mm³
 
 # Un cadran ne peut pas tourner plus que ceux qui sont derrière lui : leurs languettes
 # passent dans sa fente et le bloqueraient. Les angles décroissent donc de l'arrière à
-# l'avant (en degrés, dans le sens de l'animation).
+# l'avant (en degrés, dans le sens de l'animation). Ils sont tous des multiples du pas des
+# dents du volet : entre deux crans, les dents des languettes tombent en face de celles du
+# volet et se recouvrent de 0,1 mm, un cadran ne s'y arrête donc pas.
 POSITIONS = {
     "initial": (0, 0, 0, 0, 0),
     "arrière seul": (90, 0, 0, 0, 0),
@@ -25,8 +27,8 @@ POSITIONS = {
     "ensemble 180": (180, 180, 180, 180, 180),
     "deux paires": (90, 90, 30, 30, 0),
     "escalier 30": (120, 90, 60, 30, 0),
-    "escalier 20": (100, 80, 60, 40, 20),
-    "escalier fin": (20, 15, 10, 5, 0),
+    "escalier 20": (99, 81, 60, 39, 21),
+    "escalier fin": (12, 9, 6, 3, 0),
     "escalier haut": (180, 150, 120, 90, 60),
 }
 

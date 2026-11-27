@@ -641,7 +641,7 @@ dev = [
     { name = "basedpyright" },
     { name = "cadquery-ocp" },
     { name = "ocp-viewer" },
-    { name = "pytest", specifier = ">=9.2.0" },
+    { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
     { name = "watchfiles" },
