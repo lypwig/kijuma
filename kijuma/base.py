@@ -171,7 +171,7 @@ def fold_sides(sheet: BuildSheet) -> None:
 
 
 def cover_teeth() -> Part:
-    """Construit les entailles triangulaires qui forment les dents de l'arc du disque."""
+    """Construit la matière à retirer de l'arc du disque du volet pour y faire des dents."""
     radius, depth, step = (
         v.base_cover_disc_diam / 2,
         v.base_cover_teeth_depth,
@@ -184,23 +184,21 @@ def cover_teeth() -> Part:
     def polar(r: float, angle: float) -> tuple[float, float]:
         return r * cos(radians(angle)), r * sin(radians(angle))
 
-    # Chaque entaille va d'un sommet de dent au suivant, creusée à mi-chemin de `depth`
-    notches = [
-        [
-            polar(radius, i * step),
-            polar(radius - depth, (i + 0.5) * step),
-            polar(radius, (i + 1) * step),
-            polar(radius + 1, (i + 1) * step),
-            polar(radius + 1, i * step),
-        ]
-        for i in range(2, count - 2)
+    # Un seul contour : les dents, en zigzag entre les sommets sur le cercle et les creux
+    # à mi-pas, puis le retour par l'extérieur du cercle, pour retirer aussi l'arc
+    first, last = 2, count - 2
+    teeth = [
+        polar(radius - depth * (i % 2), (first + i / 2) * step)
+        for i in range(2 * (last - first) + 1)
+    ]
+    outside = [
+        polar(radius + 1, (last - i / 2) * step) for i in range(2 * (last - first) + 1)
     ]
     # Hors de la face avant du panneau, pour ne couper que le volet
     plane = Plane.XZ.offset(2 * v.bend_radius - 0.5)
     with BuildPart() as builder:
         with BuildSketch(plane):
-            for points in notches:
-                Polygon(*points, align=None)
+            Polygon(*teeth, *outside, align=None)
         extrude(amount=v.material_thickness + 1)
     return builder.part
 
@@ -224,13 +222,14 @@ def add_cover_disc(body: Compound) -> Compound:
         with BuildSketch(Plane.XZ.offset(thickness / 2)):
             Polygon(*below, align=None)
         extrude(amount=3 * thickness)
-    cover = Compound(body - cut.part + disc.part - hole.part)
+    # Les dents ne touchent que le disque, hors du volet : creusées avant la fusion
+    cover = Compound(body - cut.part + (disc.part - cover_teeth()) - hole.part)
     # Congés des trois angles libres du volet : disque / haut, disque / pente, pente / bas
     y = -(2 * v.bend_radius + thickness / 2)
     half = v.base_size / 2
     corners = (radius, y, 0), (0, y, -radius), (half - radius, y, -half)
     edges = [cover.edges().filter_by(Axis.Y).sort_by_distance(c)[0] for c in corners]
-    return Compound([cover.fillet(v.fillet, edges) - cover_teeth()])
+    return Compound([cover.fillet(v.fillet, edges)])
 
 
 def view_tip() -> Sketch:

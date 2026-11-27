@@ -13,6 +13,12 @@ FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face orientée sel
 
 
 @pytest.fixture(scope="module")
+def body() -> Solid:
+    """Retourne le corps du socle, construit une seule fois avec les valeurs courantes."""
+    return max(base().solids(), key=lambda s: s.volume)
+
+
+@pytest.fixture(scope="module")
 def outline() -> list[Edge]:
     """Retourne les arêtes de la face extérieure de la patte, pliée à 90°."""
     with pytest.MonkeyPatch.context() as patch:
@@ -97,9 +103,8 @@ def test_support_length(outline: list[Edge]) -> None:
     )
 
 
-def test_cover_is_folded_over_front_face() -> None:
+def test_cover_is_folded_over_front_face(body: Solid) -> None:
     """Le volet recouvre la face avant, du bas du panneau et jusqu'au disque du rivet."""
-    body = max(base().solids(), key=lambda s: s.volume)
     front_y = -v.material_thickness  # le panneau avant occupe y de 0 à l'épaisseur
     covers = [
         f
@@ -118,9 +123,8 @@ def test_cover_is_folded_over_front_face() -> None:
     assert pytest.approx(disc, abs=TOLERANCE) == box.max.Z
 
 
-def test_cover_has_rivet_hole() -> None:
+def test_cover_has_rivet_hole(body: Solid) -> None:
     """Le volet est percé d'un trou du diamètre du rivet, centré sur l'origine."""
-    body = max(base().solids(), key=lambda s: s.volume)
     holes = [
         e
         for e in body.edges()
@@ -132,9 +136,8 @@ def test_cover_has_rivet_hole() -> None:
     assert holes, "trou du rivet introuvable dans le volet"
 
 
-def test_cover_left_side_goes_down_at_45_degrees() -> None:
+def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
     """Depuis le point le plus bas du disque, le bord du volet descend à 45° à droite."""
-    body = max(base().solids(), key=lambda s: s.volume)
     outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     # Arêtes obliques de la face avant du volet
     slanted = [
@@ -155,9 +158,8 @@ def test_cover_left_side_goes_down_at_45_degrees() -> None:
     assert pytest.approx(-v.base_cover_disc_diam / 2, abs=TOLERANCE) == point.X + point.Z
 
 
-def test_cover_has_three_rounded_corners() -> None:
+def test_cover_has_three_rounded_corners(body: Solid) -> None:
     """Les trois angles libres du volet sont arrondis avec le rayon des angles."""
-    body = max(base().solids(), key=lambda s: s.volume)
     outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     # Le trou du rivet est exclu : son centre est sur l'axe, à l'origine
     arcs = [
@@ -171,9 +173,8 @@ def test_cover_has_three_rounded_corners() -> None:
     assert len(arcs) == 3  # noqa: PLR2004
 
 
-def test_front_panel_corner_above_fold_is_sharp() -> None:
+def test_front_panel_corner_above_fold_is_sharp(body: Solid) -> None:
     """Le coin du panneau avant en haut du pli du volet n'est pas arrondi."""
-    body = max(base().solids(), key=lambda s: s.volume)
     half = v.base_size / 2
     rounded = [
         f
@@ -227,9 +228,8 @@ def test_support_angle_is_configurable(
     assert pytest.approx(support_area(), abs=0.1) == walls[0].area
 
 
-def test_cover_disc_arc_has_teeth() -> None:
+def test_cover_disc_arc_has_teeth(body: Solid) -> None:
     """L'arc du disque du volet est denté, sauf à deux pas de chaque bout."""
-    body = max(base().solids(), key=lambda s: s.volume)
     outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     radius, step = v.base_cover_disc_diam / 2, radians(v.base_cover_teeth_step)
     # Un côté de dent relie un sommet, sur le cercle, au creux à mi-pas, plus profond
