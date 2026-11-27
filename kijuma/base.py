@@ -7,6 +7,7 @@ créé dans la même fonction que lui.
 """
 
 from math import asin, cos, radians, sin, sqrt
+from typing import NamedTuple
 
 from build123d import *
 
@@ -21,16 +22,16 @@ def front_cutter() -> Sketch:
     with BuildSketch() as sketch:
         align = (Align.CENTER, Align.MIN)
         Rectangle(v.base_size, v.base_size / 2, align=align)
-        Circle(v.dial_disc_diam / 2, mode=Mode.SUBTRACT, align=None)
+        Circle(u.disc_radius, mode=Mode.SUBTRACT, align=None)
         with BuildSketch(Rotation(90, 0, 0)):
-            Circle(v.dial_disc_diam / 2, 180 + len(v.dials) * v.dial_slot_step, align=None)
-        Circle(v.dial_disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
+            Circle(u.disc_radius, u.base_slot_angle, align=None)
+        Circle(u.slot_radii[1], mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
 
 def view_radii() -> tuple[float, float]:
     """Construit les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
-    outer = v.dial_diam / 2 + v.base_view_width - v.dial_tab_height
+    outer = u.dial_radius + v.base_view_width - v.dial_tab_height
     return outer, outer - v.base_view_width
 
 
@@ -88,14 +89,33 @@ def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
     """Retourne les sommets du panneau avant à arrondir, sauf au bas de la fenêtre."""
     min_pos, max_pos = -v.base_size / 2 + 1, v.base_size
     corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
-    radii = v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width
     # Pas de congé au bas de la fenêtre, ni à droite du disque intérieur (début de la fente)
     skipped = [
         p
-        for angle in (180 + len(v.dials) * v.dial_slot_step, 0)
-        for p in u.polar_vertices(corners, angle, radii)
+        for angle in (u.base_slot_angle, 0)
+        for p in u.polar_vertices(corners, angle, u.slot_radii)
     ]
     return [p for p in corners if p not in skipped]
+
+
+class Strip(NamedTuple):
+    """Languette du socle : abscisse du centre, ordonnée du bord, échancrure et largeur."""
+
+    x: float
+    edge_y: float
+    notch_height: float
+    width: float
+
+
+def strips() -> list[Strip]:
+    """Construit les languettes du socle."""
+    # À droite juste sous l'axe du cadran, à gauche sur le bord plat sous la pointe de la
+    # fenêtre.
+    drop = u.base_right_strip_drop
+    return [
+        Strip(u.base_right_strip_pos, -drop, drop, v.base_right_strip_width),
+        Strip(left_strip_pos(), left_strip_edge_y(), 0, v.base_left_strip_width),
+    ]
 
 
 def strip_fit(edge: Edge, x: float, width: float) -> tuple[float, float]:
@@ -126,17 +146,6 @@ def base() -> Part:
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = v.base_play + len(v.dials) * v.material_thickness - 2 * radius
-    # Languettes (x du centre, y du bord, hauteur de l'échancrure, largeur) : à droite juste
-    # sous l'axe du cadran, à gauche sur le bord plat laissé sous la pointe de la fenêtre
-    strips = [
-        (
-            u.base_right_strip_pos,
-            -u.base_right_strip_drop,
-            u.base_right_strip_drop,
-            v.base_right_strip_width,
-        ),
-        (left_strip_pos(), left_strip_edge_y(), 0, v.base_left_strip_width),
-    ]
     necks = []
 
     with BuildPart() as builder:
@@ -162,12 +171,8 @@ def base() -> Part:
             # Fenêtre du panneau avant, pour voir le bout des languettes, avec ses congés
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(view_window())
-            window_end = u.polar_vertices(
-                sheet.vertices(),
-                base_view_angle - 180,
-                view_radii(),
-            )
-            fillet(window_end, v.fillet)
+            end_angle = base_view_angle - 180
+            fillet(u.polar_vertices(sheet.vertices(), end_angle, view_radii()), v.fillet)
 
             # Chanfrein horizontal de la pointe de la fenêtre au bord gauche, avec congés
             with BuildSketch(mode=Mode.SUBTRACT):
@@ -183,12 +188,12 @@ def base() -> Part:
                 v.fillet,
             )
 
-            for x, edge_y, notch_height, width in strips:
+            for x, edge_y, notch_height, width in strips():
                 # Le panneau avant est échancré pour abaisser la bande sous son bord
                 if notch_height:
                     notch_pos = x, edge_y + notch_height / 2
                     # Même largeur que l'entaille des cadrans, pour aligner les congés
-                    half = width / 2 + v.dial_notch_size
+                    half = u.notch_half(width)
                     with BuildSketch(mode=Mode.SUBTRACT), Locations(notch_pos):
                         Rectangle(2 * half, notch_height)
                     # Congés des coins du panneau qui bordent l'entrée de l'échancrure

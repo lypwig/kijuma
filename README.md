@@ -22,6 +22,10 @@ Dans un autre terminal, vous pouvez lancer le linter :
 
     nix-shell --run linter
 
+Pour lancer les tests (non-intersection des pièces, tôle dépliée sans superposition) :
+
+    nix-shell --run tester
+
 ## Paternité
 
 Auteur: Nathanaël Jourdane

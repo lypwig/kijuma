@@ -11,5 +11,6 @@ pkgs.mkShell {
     viewer() { uv run python -m ocp_viewer; }
     watcher()  { uv run python watch.py kijuma/main.py; }
     linter()  { uv run ruff check && uv run ty check; }
+    tester()  { uv run pytest; }
   '';
 }

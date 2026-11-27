@@ -8,9 +8,21 @@ from . import utils as u
 from . import values as v
 
 
+def flap_angles(slot_extra: float) -> tuple[float, float]:
+    """Retourne les angles du début et de la fin de la fenêtre de la languette."""
+    slot_length = 180 + slot_extra + v.dial_slot_step
+    return slot_length - v.dial_slot_step, slot_length
+
+
+def flap_hinge(start: float, end: float) -> tuple[float, float, float]:
+    """Retourne l'angle médian, le demi-angle et le rayon de la corde de la languette."""
+    half = radians((end - start) / 2)
+    return radians((start + end) / 2), half, u.disc_radius * cos(half)
+
+
 def flap_window(start: float, end: float) -> Sketch:
     """Construit le bout de la fente, dont le bord extérieur est une corde et non un arc."""
-    inner, outer = v.dial_disc_diam / 2 - v.dial_slot_width, v.dial_disc_diam / 2
+    outer, inner = u.slot_radii
     points = [
         (r * cos(radians(a)), r * sin(radians(a)))
         for r, a in ((inner, start), (outer, start), (outer, end), (inner, end))
@@ -20,30 +32,23 @@ def flap_window(start: float, end: float) -> Sketch:
     return sketch.sketch_local
 
 
+def fold_flap(sheet: BuildSheet, edge: Edge | ShapeList[Edge], depth: float) -> None:
+    """Plie la languette vers l'avant depuis le bord, puis rabat son bout vers le centre."""
+    flange(edge, depth, -90, gaps=v.dial_flap_gap, length_from=LengthFrom.INNER_SHARP)
+    tip = sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0]
+    flange(tip, v.dial_flap_fold, 90)
+
+
 def flap_span(depth: float) -> tuple[float, float]:
     """Retourne la longueur développée de la languette et son retrait une fois repliée."""
     # Mesuré sur une tôle d'essai pliée comme le cadran : le dépliage tient compte des
     # rayons de pliage, et le retrait est la distance entre la charnière et le bout.
     size = 10
-    with BuildSheet(
-        Plane.XZ,
-        thickness=v.material_thickness,
-        bend_radius=v.bend_radius,
-    ) as sheet:
+    thickness, radius = v.material_thickness, v.bend_radius
+    with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
         with BuildSketch():
             Rectangle(size, size)
-        flange(
-            sheet.rims().group_by(Axis.Y)[0],
-            depth,
-            -90,
-            gaps=0,
-            length_from=LengthFrom.INNER_SHARP,
-        )
-        flange(
-            sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0],
-            v.dial_flap_fold,
-            90,
-        )
+        fold_flap(sheet, sheet.rims().group_by(Axis.Y)[0], depth)
         reach = -size / 2 - min(p.Y for p in sheet.vertices())
         flat, _ = unfold()
     box = flat.bounding_box()
@@ -55,12 +60,11 @@ def flap_pocket(flap_start: float, end: float, depth: float) -> Sketch:
     # Dépliée, la languette repartirait de sa charnière vers le centre du cadran, sur le
     # disque : sans ce vide, la tôle se superposerait à elle-même. Le bout rabattu est
     # taillé selon les côtés radiaux du secteur, l'empreinte suit donc le même trapèze.
-    half = radians((end - flap_start) / 2)
-    mid = radians((flap_start + end) / 2)
-    outer = v.dial_disc_diam / 2
+    mid, half, hinge = flap_hinge(flap_start, end)
     slope = sin(half) / cos(half)  # demi-largeur du secteur par unité de rayon
-    hinge = outer * cos(half)
-    width = outer * sin(half) - v.dial_flap_gap  # la pliure est retirée à chaque bout
+    width = (
+        u.disc_radius * sin(half) - v.dial_flap_gap
+    )  # la pliure est retirée à chaque bout
     length, reach = flap_span(depth)
     # Le bout rabattu rétrécit dès que le secteur devient plus étroit que la languette
     bend = max(0, length - reach + v.dial_flap_gap / slope)
@@ -89,25 +93,43 @@ def flap_clip(start: float, end: float) -> Part:
     """Construit le volume à retirer sous le cadran, hors du secteur de la languette."""
     # Les côtés du secteur sont radiaux : les bouts rabattus de deux languettes voisines,
     # qui convergent vers le centre, se touchent ainsi sur toute leur longueur.
-    reach = v.dial_diam
+    size = v.dial_diam
     points = [(0, 0)] + [
-        (reach * cos(radians(a)), reach * sin(radians(a)))
+        (size * cos(radians(a)), size * sin(radians(a)))
         for a in (start, (start + end) / 2, end)
     ]
     with BuildPart() as builder:
         # Sous la tôle du cadran (de 0 à -épaisseur), là où il n'y a que la languette
-        with Locations((0, -v.material_thickness - reach / 2, 0)):
-            Box(2 * reach, reach, 2 * reach)
+        with Locations((0, -v.material_thickness - size / 2, 0)):
+            Box(2 * size, size, 2 * size)
         with BuildSketch(Plane.XZ):
             Polygon(*points, align=None)
-        extrude(amount=reach * 2, mode=Mode.SUBTRACT)
+        extrude(amount=size * 2, mode=Mode.SUBTRACT)
     return builder.part
 
 
-def flap_angles(slot_extra: float) -> tuple[float, float]:
-    """Retourne les angles du début et de la fin de la fenêtre de la languette."""
-    slot_length = 180 + slot_extra + v.dial_slot_step
-    return slot_length - v.dial_slot_step, slot_length
+def rounded_corners(
+    vertices: ShapeList[Vertex],
+    tab_angle: float,
+    slot_ends: tuple[float, ...],
+) -> list[Vertex]:
+    """Retourne les sommets à arrondir : disque central et bout de la languette."""
+    # Pas de congés sur les bouts de la fente
+    slot = [p for a in slot_ends for p in u.polar_vertices(vertices, a, u.slot_radii)]
+    center = [p for p in vertices if hypot(p.X, p.Y) < u.disc_radius + 1]
+    tab_radii = u.dial_radius, u.dial_radius - v.dial_tab_height
+    tab_end = u.polar_vertices(vertices, tab_angle - 180, tab_radii)
+    return [p for p in center if p not in slot] + tab_end
+
+
+def notch_corners() -> list[tuple[float, float]]:
+    """Retourne les coins du bord plat qui bordent l'entrée des entailles."""
+    half = u.notch_half(v.base_right_strip_width)
+    return [
+        (sign * u.base_right_strip_pos + side * half, 0)
+        for sign in (-1, 1)
+        for side in (-1, 1)
+    ]
 
 
 def dial_sheet(
@@ -121,82 +143,50 @@ def dial_sheet(
     Retourne la pièce épaissie et la tôle de référence, que l'on peut déplier.
     """
     flap_start, slot_length = flap_angles(slot_extra)
+    depth = v.dial_flap_depth + flap_extra
     thickness, radius = v.material_thickness, v.bend_radius
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch() as sketch:
-                Circle(v.dial_disc_diam / 2)
-                Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
-                Circle(v.dial_diam / 2, -180 + tab_angle, None)
+                Circle(u.disc_radius)
+                Circle(u.dial_radius - v.dial_tab_height, -180, None)
+                Circle(u.dial_radius, -180 + tab_angle, None)
 
                 with BuildSketch(Rotation(90, 0, 0), mode=Mode.SUBTRACT):
-                    Circle(v.dial_disc_diam / 2, flap_start, None)
-                    Circle(v.dial_disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
+                    Circle(u.disc_radius, flap_start, None)
+                    Circle(u.slot_radii[1], mode=Mode.SUBTRACT)
                 with BuildSketch(mode=Mode.SUBTRACT):
                     insert(flap_window(flap_start, slot_length))
 
-                # Congés sur le disque central et le bout de la languette, pas sur la fente
-                slot_radii = v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width
-                slot_ends = [0, flap_start, slot_length]
-                slot = [
-                    p
-                    for a in slot_ends
-                    for p in u.polar_vertices(sketch.vertices(), a, slot_radii)
-                ]
-                center = [
-                    p
-                    for p in sketch.vertices()
-                    if hypot(p.X, p.Y) < v.dial_disc_diam / 2 + 1
-                ]
-                tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
-                tab_end = u.polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
-                fillet([p for p in center if p not in slot] + tab_end, v.fillet)
+                slot_ends = 0, flap_start, slot_length
+                fillet(rounded_corners(sketch.vertices(), tab_angle, slot_ends), v.fillet)
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
                 # Vide du disque central où la languette se déplierait, sans congés
-                depth = v.dial_flap_depth + flap_extra
                 with BuildSketch(mode=Mode.SUBTRACT):
                     insert(flap_pocket(flap_start, slot_length, depth))
 
                 # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
-                half = v.base_right_strip_width / 2 + v.dial_notch_size
                 with Locations((u.base_right_strip_pos, 0), (-u.base_right_strip_pos, 0)):
-                    align = (Align.CENTER, Align.MAX)
                     Rectangle(
-                        2 * half,
+                        2 * u.notch_half(v.base_right_strip_width),
                         u.base_right_strip_drop,
-                        align=align,
+                        align=(Align.CENTER, Align.MAX),
                         mode=Mode.SUBTRACT,
                     )
-                # Congés des coins du bord plat qui bordent l'entrée des entailles
-                notch_corners = [
-                    (sign * u.base_right_strip_pos + side * half, 0)
-                    for sign in (-1, 1)
-                    for side in (-1, 1)
-                ]
-                fillet(u.point_vertices(sketch.vertices(), notch_corners), v.light_fillet)
+                fillet(u.point_vertices(sketch.vertices(), notch_corners()), v.light_fillet)
 
-                with Locations((v.dial_diam / 2 - v.dial_stop_loc, 0)):
+                with Locations((u.dial_radius - v.dial_stop_loc, 0)):
                     SlotOverall(*v.dial_stop_size)
 
             # Languette pliée à 90° vers l'avant, sur la corde qui ferme le bout de la fente
-            mid = radians(flap_start + v.dial_slot_step / 2)
-            chord = v.dial_disc_diam / 2 * cos(radians(v.dial_slot_step / 2))
+            mid, _, hinge = flap_hinge(flap_start, slot_length)
             edge = (
                 sheet.rims()
                 .filter_by(GeomType.LINE)
-                .sort_by_distance((chord * cos(mid), chord * sin(mid), 0))[0]
+                .sort_by_distance((hinge * cos(mid), hinge * sin(mid), 0))[0]
             )
-            flange(
-                edge,
-                v.dial_flap_depth + flap_extra,
-                -90,
-                gaps=v.dial_flap_gap,
-                length_from=LengthFrom.INNER_SHARP,
-            )
-            # Second pli : le bout de la languette est rabattu vers le centre du cadran
-            tip = sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0]
-            flange(tip, v.dial_flap_fold, 90)
+            fold_flap(sheet, edge, depth)
         thicken()
     return builder.part, sheet
 

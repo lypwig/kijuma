@@ -7,14 +7,14 @@ from .base import base
 from .dial import dial
 
 
-def rivet(length: float = 8) -> Part:
+def rivet(length: float) -> Part:
     """Construit le rivet qui maintient les cadrans au socle."""
+    head_diam, head_thickness = v.rivet_head
+    center = Align.CENTER, Align.CENTER
     with BuildPart() as builder:
-        align = (Align.CENTER, Align.CENTER, Align.MIN)
-        head = Cylinder(v.rivet_head[0] / 2, v.rivet_head[1], align=align)
-        top = head.edges().filter_by_position(Axis.Z, v.rivet_head[1] - 0.1, 10)
-        fillet(top.filter_by(GeomType.CIRCLE), v.light_fillet)
-        Cylinder(v.rivet_diam / 2, length, align=(Align.CENTER, Align.CENTER, Align.MAX))
+        head = Cylinder(head_diam / 2, head_thickness, align=(*center, Align.MIN))
+        fillet(head.edges().group_by(Axis.Z)[-1].filter_by(GeomType.CIRCLE), v.light_fillet)
+        Cylinder(v.rivet_diam / 2, length, align=(*center, Align.MAX))
 
     part = builder.part
     part.label = v.rivet[0]
