@@ -33,6 +33,8 @@ base_right_strip_width = 20  # largeur de la base de la languette de droite
 base_support_height = 60  # hauteur verticale de la patte du support, sur le côté gauche
 base_support_length = 120  # longueur horizontale de la patte, depuis le panneau arrière
 base_support_tilt = 20  # inclinaison du socle, vers l'arrière, une fois posé sur le support
+base_cover_height = base_size / 2  # hauteur du volet replié sur la face avant, côté droit
+base_cover_length = 160  # longueur du volet, depuis le bord droit du panneau avant
 base_strip_stop = 2.5  # largeur des butées des languettes, de part et d'autre de la tête
 base_strip_clearance = 0  # jeu entre la tête des languettes et des fenêtres
 

@@ -85,3 +85,22 @@ def test_support_length(outline: list[Edge]) -> None:
         back + v.base_support_length,
         abs=TOLERANCE,
     )
+
+
+def test_cover_is_folded_over_front_face() -> None:
+    """Le volet recouvre la face avant, avec la hauteur et la longueur voulues."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    front_y = -v.material_thickness  # le panneau avant occupe y de 0 à l'épaisseur
+    covers = [
+        f
+        for f in body.faces()
+        if f.geom_type == GeomType.PLANE
+        and f.normal_at().Y < -FLAT_NORMAL
+        and front_y > f.center().Y
+    ]
+    assert len(covers) == 1, "face extérieure du volet introuvable"
+    box = covers[0].bounding_box()
+    assert pytest.approx(v.base_cover_length, abs=TOLERANCE) == box.max.X - box.min.X
+    assert pytest.approx(v.base_cover_height, abs=TOLERANCE) == box.max.Z - box.min.Z
+    assert pytest.approx(v.base_size / 2, abs=TOLERANCE) == box.max.X
+    assert pytest.approx(-v.base_size / 2, abs=TOLERANCE) == box.min.Z

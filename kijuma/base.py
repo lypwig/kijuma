@@ -118,6 +118,24 @@ def fold_support(sheet: BuildSheet) -> None:
     )
 
 
+def fold_cover(sheet: BuildSheet) -> None:
+    """Plie à 180° le bord droit du panneau avant, vu de face, sur sa face avant."""
+    edge = sheet.rims().filter_by(Axis.Y).sort_by_distance((v.base_size / 2, 0, 0))[0]
+    # Le volet part du bas du panneau, quels que soient les congés du bord
+    low, high = sorted((edge.position_at(0).Y, edge.position_at(1).Y))
+    gap_low = -v.base_size / 2 - low
+    gap_high = high - (v.base_cover_height - v.base_size / 2)
+    flipped = edge.position_at(0).Y > edge.position_at(1).Y
+    gaps = (gap_high, gap_low) if flipped else (gap_low, gap_high)
+    flange(edge, v.base_cover_length, 180, gaps=gaps)
+
+
+def fold_sides(sheet: BuildSheet) -> None:
+    """Plie les côtés du socle : la patte du support et le volet de la face avant."""
+    fold_support(sheet)
+    fold_cover(sheet)
+
+
 def view_tip() -> Sketch:
     """Construit l'esquisse de la pointe de matière laissée par la fenêtre, à retirer."""
     # La fenêtre sort du bord gauche du socle en laissant une pointe de matière effilée.
@@ -278,7 +296,7 @@ def base() -> Part:
                     )
                     Rectangle(*window, mode=Mode.SUBTRACT)
 
-            fold_support(sheet)
+            fold_sides(sheet)
         thicken()
 
     # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
