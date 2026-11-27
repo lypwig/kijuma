@@ -213,6 +213,19 @@ def wrap_wall_end() -> tuple[float, float]:
     return start[0] + length * cos(angle), start[1] - length * sin(angle)
 
 
+def unfold_wrap[T: Shape](shape: T) -> T:
+    """Fait pivoter une pièce du rabat, construite repliée à 90°, à l'angle de ses plis."""
+    # Les deux plis sont verticaux. Le 2e pivote d'abord, autour de son centre, puis le
+    # 1er emporte la tranche et le rabat autour de son propre centre.
+    thickness, radius, half = v.material_thickness, v.bend_radius, v.base_size / 2
+    first = Axis((half, (len(v.dials) + 1) * thickness - wrap_radius(), 0), (0, 0, 1))
+    inner_x = half + wrap_radius()
+    flap_y = -(2 * radius + thickness + v.base_wrap_gap)  # face intérieure du rabat
+    second = Axis((inner_x - radius, flap_y + radius, 0), (0, 0, 1))
+    delta = 90 - wrap_angle()
+    return shape.rotate(second, delta).rotate(first, delta)
+
+
 def fold_wrap(sheet: BuildSheet) -> None:
     """Plie le bord droit du panneau arrière vers l'avant, puis sur la face avant."""
     back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
@@ -220,10 +233,10 @@ def fold_wrap(sheet: BuildSheet) -> None:
     angle = wrap_angle()
     gaps = bottom_gaps(edge, v.base_wrap_height)
     flange(edge, wrap_wall_length(), -angle, wrap_radius(), gaps)
-    # Le 2e pli est sur le bout de la tranche, de la même hauteur
+    # Le 2e pli est sur le bout de la tranche, de la même hauteur et du même angle
     x, y = wrap_wall_end()
     end = sheet.rims().filter_by(Axis.Y).sort_by_distance((x, 0, -y))[0]
-    flange(end, v.base_wrap_length, -90)
+    flange(end, v.base_wrap_length, -angle)
 
 
 def fold_sides(sheet: BuildSheet) -> None:
@@ -301,6 +314,21 @@ def add_cover_disc(body: Compound) -> Compound:
     corner = unfold_cover(Vertex(v.base_size / 2 - radius, y, -v.base_size / 2))
     edge = cover.edges().sort_by_distance(corner)[0]
     return Compound([cover.fillet(v.fillet, [edge])])
+
+
+def add_wrap_disc(body: Compound) -> Compound:
+    """Ajoute au rabat le disque des cadrans, centré sur le rivet, et le trou de sa tête."""
+    thickness, gap = v.material_thickness, v.base_wrap_gap
+    # Le rabat est replié devant le volet, à `gap` de sa face avant
+    plane = Plane.XZ.offset(u.cover_offset + gap)
+    center = Align.CENTER, Align.CENTER
+    with BuildPart() as disc, Locations(plane):
+        Cylinder(u.disc_radius, thickness, align=(*center, Align.MIN))
+    # Le trou ne traverse que le rabat, sans toucher le volet
+    with BuildPart() as hole, Locations(plane.offset(-gap / 2)):
+        Cylinder(v.rivet_head_hole / 2, thickness + gap, align=(*center, Align.MIN))
+    # Tout est construit replié à 90°, puis pivoté avec le rabat
+    return Compound(body + unfold_wrap(disc.part) - unfold_wrap(hole.part))
 
 
 def view_tip() -> Sketch:
@@ -470,7 +498,7 @@ def base() -> Part:
 
     # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
     # du panneau arrière quand le jeu est nul, et son contour disparaîtrait.
-    body = add_cover_disc(builder.part - support_trim())
+    body = add_wrap_disc(add_cover_disc(builder.part - support_trim()))
     part = Part([body, *(strip_neck(spacing, *neck) - body for neck in necks)])
     part.label = v.base[0]
     part.color = Color(v.base[1])

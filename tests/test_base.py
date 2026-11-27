@@ -5,6 +5,7 @@ from math import atan2, cos, degrees, hypot, pi, radians, sin, tan
 import pytest
 from build123d import *
 
+from kijuma import utils as u
 from kijuma import values as v
 from kijuma.base import base, cover_teeth_points, wrap_radius, wrap_wall_length
 
@@ -169,42 +170,70 @@ def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
     assert len(holes) == 2  # noqa: PLR2004
 
 
+def wrap_outer_y() -> float:
+    """Retourne l'ordonnée de la face avant du rabat, replié devant le volet."""
+    inner_y = -(2 * v.bend_radius + v.material_thickness + v.base_wrap_gap)
+    return inner_y - v.material_thickness
+
+
 def test_wrap_is_folded_over_cover(body: Solid) -> None:
     """Le rabat contourne la tranche et recouvre le volet, du bas à la moitié du socle."""
-    # Son jeu avec le volet : sa face intérieure est à `gap` de la face avant du volet
-    inner_y = -(2 * v.bend_radius + v.material_thickness + v.base_wrap_gap)
-    outer_y = inner_y - v.material_thickness
     wraps = [
         f
         for f in body.faces()
         if f.geom_type == GeomType.PLANE
         and f.normal_at().Y < -FLAT_NORMAL
-        and pytest.approx(outer_y, abs=TOLERANCE) == f.center().Y
+        and pytest.approx(wrap_outer_y(), abs=TOLERANCE) == f.center().Y
     ]
     assert len(wraps) == 1, "face extérieure du rabat introuvable"
     box = wraps[0].bounding_box()
-    half = v.base_size / 2
-    # Replié à 90°, le rabat part de l'extérieur de la tranche et va vers la gauche
+    half, disc = v.base_size / 2, v.dial_disc_diam / 2
+    # Replié à 90°, le rabat part de l'extérieur de la tranche et va vers la gauche, le
+    # disque débordant au-delà de son bout et de son bord haut
     tip = half + v.material_thickness + v.base_wrap_gap - v.base_wrap_length
-    assert pytest.approx(tip, abs=TOLERANCE) == box.min.X
+    assert pytest.approx(min(tip, -disc), abs=TOLERANCE) == box.min.X
     assert pytest.approx(-half, abs=TOLERANCE) == box.min.Z
-    assert pytest.approx(v.base_wrap_height - half, abs=TOLERANCE) == box.max.Z
+    assert pytest.approx(max(v.base_wrap_height - half, disc), abs=TOLERANCE) == box.max.Z
     # La tranche est au-delà du pli du volet, du jeu en plus
     edge = body.bounding_box().max.X
     expected = half + wrap_radius() + v.material_thickness
     assert pytest.approx(expected, abs=TOLERANCE) == edge
 
 
+def test_wrap_has_disc_and_rivet_head_hole(body: Solid) -> None:
+    """Le rabat a le disque des cadrans, et un trou pour la tête du rivet en son centre."""
+    circles = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and pytest.approx(wrap_outer_y(), abs=TOLERANCE) == e.center().Y
+    ]
+    holes = [e for e in circles if v.rivet_head_hole / 2 == pytest.approx(e.radius)]
+    assert len(holes) == 1
+    assert pytest.approx(0, abs=TOLERANCE) == holes[0].arc_center.X
+    assert pytest.approx(0, abs=TOLERANCE) == holes[0].arc_center.Z
+    assert any(pytest.approx(v.dial_disc_diam / 2) == e.radius for e in circles)
+
+
 def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
-    """Déplié à 0°, la tranche prolonge le panneau arrière et le rabat part vers l'avant."""
-    thickness, radius = v.material_thickness, v.bend_radius
+    """Déplié à 0°, la tranche et le rabat prolongent à plat le panneau arrière."""
     box = open_wrap.bounding_box()
-    # Le 2e pli reste à 90° : le rabat part vers l'avant, de la face arrière du pli
-    reach = v.base_size / 2 + wrap_wall_length() + radius + thickness
-    front = (len(v.dials) + 1) * thickness - radius - v.base_wrap_length
+    # Les deux plis sont dépliés : le rabat part vers la droite, sans rien devant le volet
+    reach = v.base_size / 2 + wrap_wall_length() + v.base_wrap_length
     # À 0,01° près : le pli ne peut pas être nul, ce qui dévie le bout du rabat
     assert pytest.approx(reach, abs=0.1) == box.max.X
-    assert pytest.approx(front, abs=0.1) == box.min.Y
+    assert pytest.approx(-u.cover_offset, abs=0.1) == box.min.Y
+    # Le trou du rivet suit le rabat : il est dans son plan, au bout de la tranche
+    center = v.base_size / 2 + wrap_wall_length() + v.base_size / 2 + wrap_radius()
+    center -= v.bend_radius
+    holes = [
+        e
+        for e in open_wrap.edges()
+        if e.geom_type == GeomType.CIRCLE
+        and v.rivet_head_hole / 2 == pytest.approx(e.radius)
+    ]
+    assert len(holes) == 2  # noqa: PLR2004
+    assert pytest.approx(center, abs=0.1) == holes[0].arc_center.X
 
 
 def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
