@@ -6,7 +6,7 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
-from math import asin, atan, cos, radians, sin, sqrt, tan
+from math import asin, cos, degrees, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import *
@@ -15,6 +15,7 @@ from . import utils as u
 from . import values as v
 
 base_view_angle = len(v.dials) * v.dial_tab_step
+MIN_BEND_ANGLE = 0.01  # angle minimal d'un pli, en °, car un pli de 0° est refusé
 
 
 def front_cutter() -> Sketch:
@@ -64,20 +65,24 @@ def support_gaps(edge: Edge, height: float) -> tuple[float, float]:
     return (0, top) if start < end else (top, 0)
 
 
+def support_angle() -> float:
+    """Retourne l'angle du pli du support en radians, jamais nul (0° est refusé)."""
+    return radians(max(v.base_support_angle, MIN_BEND_ANGLE))
+
+
 def support_plane() -> Plane:
     """Retourne le plan moyen de la patte : x le long de la patte, y vertical."""
     thickness, radius = v.material_thickness, v.bend_radius
-    angle = radians(v.base_support_angle)
+    angle = support_angle()
     # La patte s'éloigne du panneau dans la direction `along`, `outward` est sa normale
     # extérieure. Le centre du pliage est derrière la face arrière du panneau arrière.
     along = -cos(angle), sin(angle)
     outward = -sin(angle), -cos(angle)
     center = -v.base_size / 2, (len(v.dials) + 2) * thickness + radius
-    # Coin vif de la face intérieure du pli, d'où est mesurée la longueur de la patte
-    back = -radius * tan(angle / 2)
-    x = center[0] + (radius + thickness / 2) * outward[0] + back * along[0]
-    y = center[1] + (radius + thickness / 2) * outward[1] + back * along[1]
-    # L'origine est au coin vif du pli, sur le plan moyen de la patte
+    # L'origine est à la fin du pli, sur le plan moyen de la patte : c'est de là que
+    # est mesurée la longueur de la patte, ce qui reste valable de 0° à 180°.
+    x = center[0] + (radius + thickness / 2) * outward[0]
+    y = center[1] + (radius + thickness / 2) * outward[1]
     return Plane((x, y, 0), x_dir=(*along, 0), z_dir=(-outward[0], -outward[1], 0))
 
 
@@ -85,21 +90,20 @@ def support_trim() -> Part:
     """Construit la matière à retirer de la patte pour lui donner son contour final."""
     # Posé sur son support, le socle est incliné de `tilt` vers l'arrière : le bas de la
     # patte est alors horizontal. Dans le modèle (qui ne pivote pas), il monte donc vers
-    # l'arrière, de `tilt` mesuré selon Y, soit moins quand la patte est de biais. Le côté
-    # du panneau est vertical et mesure `height`, la longueur du bas est `length` le long
-    # de la patte, et le bout est perpendiculaire au bas et au haut dans son plan.
+    # l'arrière, de `tilt` mesuré dans le plan de la patte, quel que soit son angle de
+    # pli. Le côté du panneau est vertical et mesure `height`, la longueur du bas est
+    # `length` le long de la patte, et le bout est perpendiculaire au bas et au haut.
     height, length = v.base_support_height, v.base_support_length
     thickness, radius = v.material_thickness, v.bend_radius
-    angle = radians(v.base_support_angle)
-    slope = tan(radians(v.base_support_tilt)) * sin(angle)  # montée par longueur de patte
-    tilt = atan(slope)
+    tilt = radians(v.base_support_tilt)
+    slope = tan(tilt)  # montée par longueur de patte
     bottom = -v.base_size / 2
     # Coins du bout : le haut est à la distance perpendiculaire `height * cos(tilt)`
     far_bottom = length, bottom + length * slope
     gap = height * cos(tilt)
     far_top = far_bottom[0] - gap * sin(tilt), far_bottom[1] + gap * cos(tilt)
-    # Le contour et la plaque débordent derrière le coin vif, pour couper tout le pli
-    start = -(radius + thickness) * max(1, tan(angle / 2)) - 1
+    # Le contour et la plaque débordent derrière la fin du pli, pour couper tout le pli
+    start = -(radius + thickness) - 1
     profile = [
         (start - 1, bottom + (start - 1) * slope),
         far_bottom,
@@ -127,19 +131,18 @@ def support_trim() -> Part:
 
 def fold_support(sheet: BuildSheet) -> None:
     """Plie le bord gauche du panneau arrière, vu de face, vers l'arrière."""
-    angle = radians(v.base_support_angle)
     back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
     target = -v.base_size / 2, 0, back_z
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance(target)[0]
     # La patte déborde vers le haut de ce que le bas du parallélogramme monte
-    rise = v.base_support_length * tan(radians(v.base_support_tilt)) * sin(angle)
+    rise = v.base_support_length * tan(radians(v.base_support_tilt))
     gaps = support_gaps(edge, v.base_support_height + rise)
     flange(
         edge,
         v.base_support_length,
-        v.base_support_angle,
+        degrees(support_angle()),
         gaps=gaps,
-        length_from=LengthFrom.INNER_SHARP,
+        length_from=LengthFrom.TANGENT,
     )
 
 

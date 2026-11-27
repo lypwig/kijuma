@@ -14,8 +14,10 @@ FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face orientée sel
 
 @pytest.fixture(scope="module")
 def outline() -> list[Edge]:
-    """Retourne les arêtes de la face extérieure de la patte, côté gauche."""
-    body = max(base().solids(), key=lambda s: s.volume)
+    """Retourne les arêtes de la face extérieure de la patte, pliée à 90°."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(v, "base_support_angle", 90)
+        body = max(base().solids(), key=lambda s: s.volume)
     outer_x = -(v.base_size / 2 + v.material_thickness / 2)  # au-delà du panneau arrière
     faces = [
         f
@@ -78,7 +80,7 @@ def test_support_end_is_square(outline: list[Edge]) -> None:
 def test_support_length(outline: list[Edge]) -> None:
     """Le bas de la patte s'étend de la longueur voulue derrière le panneau arrière."""
     near, bottom, _, _ = lines(outline)
-    back = (len(v.dials) + 2) * v.material_thickness
+    back = (len(v.dials) + 2) * v.material_thickness + v.bend_radius  # fin du pli
     # Le congé retire `fillet` de chaque côté du coin vif (angle droit)
     reach = (bottom.length + v.fillet) * cos(radians(v.base_support_tilt))
     assert near.center().Y + reach == pytest.approx(
@@ -175,19 +177,16 @@ def test_front_panel_corner_above_fold_is_sharp() -> None:
     assert not rounded
 
 
-def support_area(angle: float) -> float:
-    """Retourne l'aire attendue de la face extérieure de la patte pour cet angle de pli."""
-    # Dans le plan de la patte : x le long de la patte depuis le coin vif, y vertical
-    radians_angle = radians(angle)
+def support_area() -> float:
+    """Retourne l'aire attendue de la face extérieure de la patte, quel que soit son pli."""
+    # Dans le plan de la patte : x le long de la patte depuis la fin du pli, y vertical
     height, length = v.base_support_height, v.base_support_length
-    slope = tan(radians(v.base_support_tilt)) * sin(radians_angle)
+    slope = tan(radians(v.base_support_tilt))
     tilt = atan(slope)
-    start = v.bend_radius * tan(radians_angle / 2)  # début de la partie plane
-    near = start, start * slope
     far = length, length * slope
     gap = height * cos(tilt)
     top = far[0] - gap * sin(tilt), far[1] + gap * cos(tilt)
-    points = [near, far, top, (near[0], near[1] + height)]
+    points = [(0, 0), far, top, (0, height)]
     shifted = [*points[1:], points[0]]
     pairs = zip(points, shifted, strict=True)
     double = sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in pairs)
@@ -195,24 +194,27 @@ def support_area(angle: float) -> float:
     return abs(double) / 2 - 2 * v.fillet**2 * (1 - pi / 4)
 
 
-@pytest.mark.parametrize("angle", [45, 60, 90, 120])
+@pytest.mark.parametrize("angle", [0, 45, 90, 175, 180])
 def test_support_angle_is_configurable(
     angle: float,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """La patte garde son contour, quel que soit l'angle de pli du support."""
+    """La patte garde le même contour dans son plan, quel que soit l'angle de pli."""
     monkeypatch.setattr(v, "base_support_angle", angle)
     part = base()
     assert part.is_valid
     body = max(part.solids(), key=lambda s: s.volume)
-    normal = -sin(radians(angle)), -cos(radians(angle))  # normale extérieure de la patte
+    rad = radians(max(angle, 0.01))
+    normal = -sin(rad), -cos(rad)  # normale extérieure de la patte
+    back_y = (len(v.dials) + 2) * v.material_thickness
     walls = [
         f
         for f in body.faces()
         if f.geom_type == GeomType.PLANE
         and pytest.approx(0, abs=TOLERANCE) == f.normal_at().Z
         and f.normal_at().X * normal[0] + f.normal_at().Y * normal[1] > FLAT_NORMAL
-        and (len(v.dials) + 2) * v.material_thickness < f.center().Y
+        # Hors du panneau arrière lui-même : à côté de lui, ou derrière lui
+        and (-v.base_size / 2 - TOLERANCE > f.center().X or back_y + 0.2 < f.center().Y)
     ]
     assert len(walls) == 1, "face extérieure de la patte introuvable"
-    assert pytest.approx(support_area(angle), abs=0.1) == walls[0].area
+    assert pytest.approx(support_area(), abs=0.1) == walls[0].area
