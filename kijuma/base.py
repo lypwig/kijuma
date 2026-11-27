@@ -6,7 +6,7 @@ puis ajoutées à base() : un constructeur imbriqué n'agit sur son parent que s
 créé dans la même fonction que lui.
 """
 
-from math import asin, cos, degrees, radians, sin, sqrt, tan
+from math import asin, atan2, ceil, cos, degrees, floor, radians, sin, sqrt, tan
 from typing import NamedTuple
 
 from build123d import *
@@ -16,6 +16,7 @@ from . import values as v
 
 base_view_angle = len(v.dials) * v.dial_tab_step
 MIN_BEND_ANGLE = 0.01  # angle minimal d'un pli, en °, car un pli de 0° est refusé
+TEETH_MARGIN = 0.5  # écart, en °, entre les dents et les congés qui bordent l'arc
 
 
 def front_cutter() -> Sketch:
@@ -170,30 +171,39 @@ def fold_sides(sheet: BuildSheet) -> None:
     fold_cover(sheet)
 
 
+def cover_teeth_span() -> tuple[float, float]:
+    """Retourne les angles, en °, entre lesquels l'arc libre du disque est denté."""
+    radius, fillet_radius = v.base_cover_disc_diam / 2, v.fillet
+    # L'arc libre du disque va du congé qui le raccorde au haut du volet jusqu'à celui de
+    # la pente, à 45° (coin de 135°) ; les dents le couvrent en laissant une petite marge.
+    top = atan2(fillet_radius, sqrt((radius + fillet_radius) ** 2 - fillet_radius**2))
+    bottom = fillet_radius * tan(radians(22.5)) / radius
+    return degrees(top) + TEETH_MARGIN, 270 - degrees(bottom) - TEETH_MARGIN
+
+
+def cover_teeth_points() -> list[tuple[float, float]]:
+    """Retourne les points (angle en °, profondeur) du zigzag des dents le long de l'arc."""
+    step, depth = v.base_cover_teeth_step, v.base_cover_teeth_depth
+    start, end = cover_teeth_span()
+    # Dents au pas exact, sommets sur les multiples du pas, creux à mi-pas : ainsi le
+    # motif ne dépend pas du diamètre. Seules les dents entières sont gardées, ce qui
+    # laisse un petit espace lisse à chaque bout de l'arc.
+    first, last = ceil(start / step), floor(end / step)
+    return [(j * step / 2, depth * (j % 2)) for j in range(2 * first, 2 * last + 1)]
+
+
 def cover_teeth() -> Part:
     """Construit la matière à retirer de l'arc du disque du volet pour y faire des dents."""
-    radius, depth, step = (
-        v.base_cover_disc_diam / 2,
-        v.base_cover_teeth_depth,
-        v.base_cover_teeth_step,
-    )
-    # L'arc libre du disque fait 270°, du haut du volet jusqu'au bas de la pente. Les
-    # dents s'arrêtent à deux pas de chaque bout, à l'écart des congés des angles.
-    count = int(270 / step)
+    radius = v.base_cover_disc_diam / 2
+    points = cover_teeth_points()
 
     def polar(r: float, angle: float) -> tuple[float, float]:
         return r * cos(radians(angle)), r * sin(radians(angle))
 
-    # Un seul contour : les dents, en zigzag entre les sommets sur le cercle et les creux
-    # à mi-pas, puis le retour par l'extérieur du cercle, pour retirer aussi l'arc
-    first, last = 2, count - 2
-    teeth = [
-        polar(radius - depth * (i % 2), (first + i / 2) * step)
-        for i in range(2 * (last - first) + 1)
-    ]
-    outside = [
-        polar(radius + 1, (last - i / 2) * step) for i in range(2 * (last - first) + 1)
-    ]
+    # Un seul contour : le zigzag des dents, puis le retour par l'extérieur du cercle,
+    # pour retirer aussi l'arc
+    teeth = [polar(radius - depth, angle) for angle, depth in points]
+    outside = [polar(radius + 1, angle) for angle, _ in reversed(points)]
     # Hors de la face avant du panneau, pour ne couper que le volet
     plane = Plane.XZ.offset(2 * v.bend_radius - 0.5)
     with BuildPart() as builder:

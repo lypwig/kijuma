@@ -6,7 +6,7 @@ import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.base import base
+from kijuma.base import base, cover_teeth_points
 
 TOLERANCE = 0.01  # mm ou degrés
 FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face orientée selon X
@@ -229,7 +229,7 @@ def test_support_angle_is_configurable(
 
 
 def test_cover_disc_arc_has_teeth(body: Solid) -> None:
-    """L'arc du disque du volet est denté, sauf à deux pas de chaque bout."""
+    """L'arc du disque du volet est denté au pas exact, avec des dents entières."""
     outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
     radius, step = v.base_cover_disc_diam / 2, radians(v.base_cover_teeth_step)
     # Un côté de dent relie un sommet, sur le cercle, au creux à mi-pas, plus profond
@@ -242,5 +242,11 @@ def test_cover_disc_arc_has_teeth(body: Solid) -> None:
         and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
         and pytest.approx(side, abs=TOLERANCE) == e.length
     ]
-    teeth = int(270 / v.base_cover_teeth_step) - 4  # entailles entre les sommets
-    assert len(sides) == 2 * teeth
+    # Chaque dent entière a deux côtés : un par segment du zigzag
+    points = cover_teeth_points()
+    assert len(sides) == len(points) - 1
+    # Tous les sommets sont sur les multiples du pas
+    peaks = [angle for angle, depth in points if depth == 0]
+    assert all(
+        angle % v.base_cover_teeth_step == pytest.approx(0, abs=1e-6) for angle in peaks
+    )
