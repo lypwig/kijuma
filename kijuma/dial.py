@@ -20,6 +20,68 @@ def flap_window(start: float, end: float) -> Sketch:
     return sketch.sketch_local
 
 
+def flap_span(depth: float) -> tuple[float, float]:
+    """Retourne la longueur développée de la languette et son retrait une fois repliée."""
+    # Mesuré sur une tôle d'essai pliée comme le cadran : le dépliage tient compte des
+    # rayons de pliage, et le retrait est la distance entre la charnière et le bout.
+    size = 10
+    with BuildSheet(
+        Plane.XZ,
+        thickness=v.material_thickness,
+        bend_radius=v.bend_radius,
+    ) as sheet:
+        with BuildSketch():
+            Rectangle(size, size)
+        flange(
+            sheet.rims().group_by(Axis.Y)[0],
+            depth,
+            -90,
+            gaps=0,
+            length_from=LengthFrom.INNER_SHARP,
+        )
+        flange(
+            sheet.rims().filter_by(GeomType.LINE).sort_by(Axis.Z)[0],
+            v.dial_flap_fold,
+            90,
+        )
+        reach = -size / 2 - min(p.Y for p in sheet.vertices())
+        flat, _ = unfold()
+    box = flat.bounding_box()
+    return box.max.Y - box.min.Y - size, reach
+
+
+def flap_pocket(flap_start: float, end: float, depth: float) -> Sketch:
+    """Construit l'empreinte de la languette dépliée, à retirer du disque central."""
+    # Dépliée, la languette repartirait de sa charnière vers le centre du cadran, sur le
+    # disque : sans ce vide, la tôle se superposerait à elle-même. Le bout rabattu est
+    # taillé selon les côtés radiaux du secteur, l'empreinte suit donc le même trapèze.
+    half = radians((end - flap_start) / 2)
+    mid = radians((flap_start + end) / 2)
+    outer = v.dial_disc_diam / 2
+    hinge, width = outer * cos(half), outer * sin(half)
+    length, reach = flap_span(depth)
+    bend = length - reach  # distance de la charnière où le bout commence à rétrécir
+    tip = (hinge - reach) * sin(half) / cos(half)  # demi-largeur au bout de la languette
+    outline = [
+        (0, width),
+        (bend, width),
+        (length, tip),
+        (length, -tip),
+        (bend, -width),
+        (0, -width),
+    ]
+    points = [
+        (
+            (hinge - s) * cos(mid) - h * sin(mid),
+            (hinge - s) * sin(mid) + h * cos(mid),
+        )
+        for s, h in outline
+    ]
+    with BuildSketch() as sketch:
+        Polygon(*points, align=None)
+    return sketch.sketch_local
+
+
 def flap_clip(start: float, end: float) -> Part:
     """Construit le volume à retirer sous le cadran, hors du secteur de la languette."""
     # Les côtés du secteur sont radiaux : les bouts rabattus de deux languettes voisines,
@@ -31,7 +93,7 @@ def flap_clip(start: float, end: float) -> Part:
     ]
     with BuildPart() as builder:
         # Sous la tôle du cadran (de 0 à -épaisseur), là où il n'y a que la languette
-        with Locations((0, -v.material_thickness - reach / 2 - 0.5, 0)):
+        with Locations((0, -v.material_thickness - reach / 2, 0)):
             Box(2 * reach, reach, 2 * reach)
         with BuildSketch(Plane.XZ):
             Polygon(*points, align=None)
@@ -83,6 +145,11 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
                 tab_end = u.polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
                 fillet([p for p in center if p not in slot] + tab_end, v.fillet)
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
+
+                # Vide du disque central où la languette se déplierait, sans congés
+                depth = v.dial_flap_depth + flap_extra
+                with BuildSketch(mode=Mode.SUBTRACT):
+                    insert(flap_pocket(flap_start, slot_length, depth))
 
                 # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
                 half = v.base_right_strip_width / 2 + v.dial_notch_size
