@@ -10,27 +10,28 @@ from math import sqrt
 
 from build123d import *
 
+from . import utils as u
 from . import values as v
-from .utils import polar_vertices
 
-base_view_angle = len(v.dials) * v.tab_step
+base_view_angle = len(v.dials) * v.dial_tab_step
+base_left_strip_pos = 10  # position horiz. du centre de la languette depuis le bord gauche
 
 
 def front_cutter() -> Sketch:
     """Construit l'esquisse à retirer du panneau avant : moitié haute, disque et fente."""
     with BuildSketch() as sketch:
         align = (Align.CENTER, Align.MIN)
-        Rectangle(v.base_size[0], v.base_size[1] / 2, align=align)
-        Circle(v.disc_diam / 2, mode=Mode.SUBTRACT, align=None)
+        Rectangle(v.base_size, v.base_size / 2, align=align)
+        Circle(v.dial_disc_diam / 2, mode=Mode.SUBTRACT, align=None)
         with BuildSketch(Rotation(90, 0, 0)):
-            Circle(v.disc_diam / 2, 180 + len(v.dials) * v.dial_slot_step, align=None)
-        Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
+            Circle(v.dial_disc_diam / 2, 180 + len(v.dials) * v.dial_slot_step, align=None)
+        Circle(v.dial_disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
     return sketch.sketch_local
 
 
 def view_radii() -> tuple[float, float]:
     """Construit les rayons extérieur et intérieur de la fenêtre en arc de cercle."""
-    outer = v.dial_diam / 2 + v.base_view_width - v.tab_height
+    outer = v.dial_diam / 2 + v.base_view_width - v.dial_tab_height
     return outer, outer - v.base_view_width
 
 
@@ -38,7 +39,7 @@ def left_strip_edge_y() -> float:
     """Construit la hauteur du bord de la languette de gauche."""
     # Le bord est assez bas pour que la languette tienne à gauche de la fenêtre en arc,
     # avec le congé du bout droit.
-    right = v.base_left_strip_pos - v.base_size[0] / 2 + v.base_left_strip_width / 2
+    right = base_left_strip_pos - v.base_size / 2 + v.base_left_strip_width / 2
     return -sqrt(view_radii()[0] ** 2 - (right + v.fillet) ** 2)
 
 
@@ -47,7 +48,7 @@ def view_tip() -> Sketch:
     # La fenêtre sort du bord gauche du socle en laissant une pointe de matière effilée.
     # On retire cette pointe jusqu'au bord de la languette de gauche, mais seulement
     # hors du cercle extérieur de la fenêtre : on ne touche pas au panneau côté cadran.
-    half, outer = v.base_size[0] / 2, view_radii()[0]
+    half, outer = v.base_size / 2, view_radii()[0]
     top = -sqrt(outer**2 - half**2) + 1  # un peu au-dessus de la pointe
     bottom = left_strip_edge_y()
     with BuildSketch() as sketch:
@@ -69,12 +70,12 @@ def view_window() -> Sketch:
 
 def front_corners(vertices: ShapeList[Vertex]) -> list[Vertex]:
     """Retourne les sommets du panneau avant à arrondir, sauf au bas de la fenêtre."""
-    min_pos, max_pos = -v.base_size[1] / 2 + 1, v.base_size[1]
+    min_pos, max_pos = -v.base_size / 2 + 1, v.base_size
     corners = vertices.filter_by_position(Axis.Y, min_pos, max_pos)
-    window_bottom = polar_vertices(
+    window_bottom = u.polar_vertices(
         corners,
         180 + len(v.dials) * v.dial_slot_step,
-        (v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width),
+        (v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width),
     )
     return [p for p in corners if p not in window_bottom]
 
@@ -109,12 +110,12 @@ def base() -> Part:
     spacing = v.base_play + len(v.dials) * v.material_thickness - 2 * radius
     # Languettes (x du centre, y du bord, hauteur de l'échancrure, largeur) : à droite juste
     # sous l'axe du cadran, à gauche sur le bord plat laissé sous la pointe de la fenêtre
-    left = v.base_left_strip_pos - v.base_size[0] / 2
+    left = base_left_strip_pos - v.base_size / 2
     strips = [
         (
-            v.base_right_strip_pos,
-            -v.base_right_strip_drop,
-            v.base_right_strip_drop,
+            u.base_right_strip_pos,
+            -u.base_right_strip_drop,
+            u.base_right_strip_drop,
             v.base_right_strip_width,
         ),
         (left, left_strip_edge_y(), 0, v.base_left_strip_width),
@@ -124,12 +125,12 @@ def base() -> Part:
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch():
-                Rectangle(*v.base_size)
+                Rectangle(v.base_size, v.base_size)
             bottom = sheet.rims().group_by(Axis.Y)[0]
             if spacing:  # deux pliages à 90° avec une paroi plane entre eux
                 flange(bottom, angle=-90, length=spacing)
                 bottom = sheet.rims().filter_by(Axis.X).sort_by(Axis.Z)[0]
-                flange(bottom, angle=-90, length=v.base_size[1])
+                flange(bottom, angle=-90, length=v.base_size)
 
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(front_cutter())
@@ -144,7 +145,7 @@ def base() -> Part:
             # Fenêtre du panneau avant, pour voir le bout des languettes, avec ses congés
             with BuildSketch(mode=Mode.SUBTRACT):
                 insert(view_window())
-            window_end = polar_vertices(
+            window_end = u.polar_vertices(
                 sheet.vertices(),
                 base_view_angle - 180,
                 view_radii(),

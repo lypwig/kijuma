@@ -4,13 +4,13 @@ from math import cos, hypot, radians, sin
 
 from build123d import *
 
+from . import utils as u
 from . import values as v
-from .utils import polar_vertices
 
 
 def flap_window(start: float, end: float) -> Sketch:
     """Construit le bout de la fente, dont le bord extérieur est une corde et non un arc."""
-    inner, outer = v.disc_diam / 2 - v.dial_slot_width, v.disc_diam / 2
+    inner, outer = v.dial_disc_diam / 2 - v.dial_slot_width, v.dial_disc_diam / 2
     points = [
         (r * cos(radians(a)), r * sin(radians(a)))
         for r, a in ((inner, start), (outer, start), (outer, end), (inner, end))
@@ -56,38 +56,40 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch() as sketch:
-                Circle(v.disc_diam / 2)
-                Circle(v.dial_diam / 2 - v.tab_height, -180, None)
+                Circle(v.dial_disc_diam / 2)
+                Circle(v.dial_diam / 2 - v.dial_tab_height, -180, None)
                 Circle(v.dial_diam / 2, -180 + tab_angle, None)
 
                 with BuildSketch(Rotation(90, 0, 0), mode=Mode.SUBTRACT):
-                    Circle(v.disc_diam / 2, flap_start, None)
-                    Circle(v.disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
+                    Circle(v.dial_disc_diam / 2, flap_start, None)
+                    Circle(v.dial_disc_diam / 2 - v.dial_slot_width, mode=Mode.SUBTRACT)
                 with BuildSketch(mode=Mode.SUBTRACT):
                     insert(flap_window(flap_start, slot_length))
 
                 # Congés sur le disque central et le bout de la languette, pas sur la fente
-                slot_radii = v.disc_diam / 2, v.disc_diam / 2 - v.dial_slot_width
+                slot_radii = v.dial_disc_diam / 2, v.dial_disc_diam / 2 - v.dial_slot_width
                 slot_ends = [0, flap_start, slot_length]
                 slot = [
                     p
                     for a in slot_ends
-                    for p in polar_vertices(sketch.vertices(), a, slot_radii)
+                    for p in u.polar_vertices(sketch.vertices(), a, slot_radii)
                 ]
                 center = [
-                    p for p in sketch.vertices() if hypot(p.X, p.Y) < v.disc_diam / 2 + 1
+                    p
+                    for p in sketch.vertices()
+                    if hypot(p.X, p.Y) < v.dial_disc_diam / 2 + 1
                 ]
-                tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.tab_height
-                tab_end = polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
+                tab_radii = v.dial_diam / 2, v.dial_diam / 2 - v.dial_tab_height
+                tab_end = u.polar_vertices(sketch.vertices(), tab_angle - 180, tab_radii)
                 fillet([p for p in center if p not in slot] + tab_end, v.fillet)
                 Circle(v.rivet_diam / 2, mode=Mode.SUBTRACT)
 
                 # Entailles aux deux bouts du bord plat, pour dégager la languette du socle
-                with Locations((v.base_right_strip_pos, 0), (-v.base_right_strip_pos, 0)):
+                with Locations((u.base_right_strip_pos, 0), (-u.base_right_strip_pos, 0)):
                     align = (Align.CENTER, Align.MAX)
                     Rectangle(
                         v.base_right_strip_width + v.dial_notch_size[0] * 2,
-                        v.base_right_strip_drop + v.dial_notch_size[1],
+                        u.base_right_strip_drop + v.dial_notch_size[1],
                         align=align,
                         mode=Mode.SUBTRACT,
                     )
@@ -97,7 +99,7 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
 
             # Languette pliée à 90° vers l'avant, sur la corde qui ferme le bout de la fente
             mid = radians(flap_start + v.dial_slot_step / 2)
-            chord = v.disc_diam / 2 * cos(radians(v.dial_slot_step / 2))
+            chord = v.dial_disc_diam / 2 * cos(radians(v.dial_slot_step / 2))
             edge = (
                 sheet.rims()
                 .filter_by(GeomType.LINE)
