@@ -1,6 +1,6 @@
 """Vérifie la forme de la patte du support du socle."""
 
-from math import atan2, cos, degrees, pi, radians, sin, tan
+from math import atan2, cos, degrees, hypot, pi, radians, sin, tan
 
 import pytest
 from build123d import *
@@ -144,6 +144,7 @@ def test_cover_left_side_goes_down_at_45_degrees() -> None:
         and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
         and abs(e.end_point().X - e.start_point().X) > TOLERANCE
         and abs(e.end_point().Z - e.start_point().Z) > TOLERANCE
+        and e.length > v.base_cover_disc_diam / 4  # hors des côtés des dents
     ]
     assert len(slanted) == 1
     run = slanted[0].end_point().X - slanted[0].start_point().X
@@ -224,3 +225,22 @@ def test_support_angle_is_configurable(
     ]
     assert len(walls) == 1, "face extérieure de la patte introuvable"
     assert pytest.approx(support_area(), abs=0.1) == walls[0].area
+
+
+def test_cover_disc_arc_has_teeth() -> None:
+    """L'arc du disque du volet est denté, sauf à deux pas de chaque bout."""
+    body = max(base().solids(), key=lambda s: s.volume)
+    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    radius, step = v.base_cover_disc_diam / 2, radians(v.base_cover_teeth_step)
+    # Un côté de dent relie un sommet, sur le cercle, au creux à mi-pas, plus profond
+    deep = radius - v.base_cover_teeth_depth
+    side = hypot(radius - deep * cos(step / 2), deep * sin(step / 2))
+    sides = [
+        e
+        for e in body.edges()
+        if e.geom_type == GeomType.LINE
+        and pytest.approx(outer_y, abs=TOLERANCE) == e.center().Y
+        and pytest.approx(side, abs=TOLERANCE) == e.length
+    ]
+    teeth = int(270 / v.base_cover_teeth_step) - 4  # entailles entre les sommets
+    assert len(sides) == 2 * teeth

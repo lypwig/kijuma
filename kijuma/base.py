@@ -170,6 +170,41 @@ def fold_sides(sheet: BuildSheet) -> None:
     fold_cover(sheet)
 
 
+def cover_teeth() -> Part:
+    """Construit les entailles triangulaires qui forment les dents de l'arc du disque."""
+    radius, depth, step = (
+        v.base_cover_disc_diam / 2,
+        v.base_cover_teeth_depth,
+        v.base_cover_teeth_step,
+    )
+    # L'arc libre du disque fait 270°, du haut du volet jusqu'au bas de la pente. Les
+    # dents s'arrêtent à deux pas de chaque bout, à l'écart des congés des angles.
+    count = int(270 / step)
+
+    def polar(r: float, angle: float) -> tuple[float, float]:
+        return r * cos(radians(angle)), r * sin(radians(angle))
+
+    # Chaque entaille va d'un sommet de dent au suivant, creusée à mi-chemin de `depth`
+    notches = [
+        [
+            polar(radius, i * step),
+            polar(radius - depth, (i + 0.5) * step),
+            polar(radius, (i + 1) * step),
+            polar(radius + 1, (i + 1) * step),
+            polar(radius + 1, i * step),
+        ]
+        for i in range(2, count - 2)
+    ]
+    # Hors de la face avant du panneau, pour ne couper que le volet
+    plane = Plane.XZ.offset(2 * v.bend_radius - 0.5)
+    with BuildPart() as builder:
+        with BuildSketch(plane):
+            for points in notches:
+                Polygon(*points, align=None)
+        extrude(amount=v.material_thickness + 1)
+    return builder.part
+
+
 def add_cover_disc(body: Compound) -> Compound:
     """Ajoute au volet le disque centré sur le rivet, percé du trou du rivet."""
     thickness = v.material_thickness
@@ -195,7 +230,7 @@ def add_cover_disc(body: Compound) -> Compound:
     half = v.base_size / 2
     corners = (radius, y, 0), (0, y, -radius), (half - radius, y, -half)
     edges = [cover.edges().filter_by(Axis.Y).sort_by_distance(c)[0] for c in corners]
-    return Compound([cover.fillet(v.fillet, edges)])
+    return Compound([cover.fillet(v.fillet, edges) - cover_teeth()])
 
 
 def view_tip() -> Sketch:
