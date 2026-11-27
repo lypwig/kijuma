@@ -55,7 +55,7 @@ TOLERANCE = 0.01  # mm
 
 @pytest.mark.parametrize("index", range(len(v.dials)))
 def test_flap_tip_has_teeth(index: int) -> None:
-    """Le bout rabattu de la languette intérieure de chaque cadran est denté."""
+    """Le bout rabattu de la languette de chaque cadran est denté de bord à bord."""
     extra = (len(v.dials) - 1 - index) * v.material_thickness
     start, end = flap_angles(index * v.dial_slot_step)
     depth = v.dial_flap_depth + extra
@@ -73,4 +73,5 @@ def test_flap_tip_has_teeth(index: int) -> None:
         and pytest.approx(side, abs=TOLERANCE) == e.length
     ]
     assert points
-    assert len(sides) == len(points) - 1
+    # Les côtés sont les segments en pente du zigzag, hors les deux fonds prolongés
+    assert len(sides) == len(points) - 3

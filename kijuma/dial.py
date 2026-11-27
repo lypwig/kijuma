@@ -97,12 +97,17 @@ def flap_teeth_points(start: float, end: float, depth: float) -> list[tuple[floa
     _, reach = flap_span(depth)
     width = 2 * (hinge - reach) * tan(half)
     step, tooth = v.dial_flap_teeth_step, v.dial_flap_teeth_depth
-    # Dents entières, centrées : il reste au moins un demi-pas lisse à chaque bout
+    # Dents entières, centrées, et à chaque bout une demi-dent descendante, qui se
+    # prolonge à fond de dent jusqu'au bord de la languette, sans espace lisse
     count = max(0, floor(width / step) - 1)
-    points = []
+    if not count:
+        return []
+    edge = width / 2 + 1  # au-delà du bord de la languette, pour couper franchement
+    reach_end = (count / 2 + 0.5) * step
+    points = [(-edge, tooth), (-reach_end, tooth)]
     for i in range(count):
         points += [((i - count / 2) * step, 0), ((i + 0.5 - count / 2) * step, tooth)]
-    return [*points, ((count / 2) * step, 0)] if count else []
+    return [*points, (count / 2 * step, 0), (reach_end, tooth), (edge, tooth)]
 
 
 def flap_teeth(start: float, end: float, depth: float) -> Part | None:
