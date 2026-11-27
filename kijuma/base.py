@@ -65,30 +65,39 @@ def support_gaps(edge: Edge, height: float) -> tuple[float, float]:
 
 
 def support_trim() -> Part:
-    """Construit les triangles à retirer de la patte pour en faire un parallélogramme."""
+    """Construit la matière à retirer de la patte pour lui donner son contour final."""
     # Posé sur son support, le socle est incliné de `tilt` vers l'arrière : le bas de la
     # patte est alors horizontal. Dans le modèle (qui ne pivote pas), il monte donc vers
-    # l'arrière. Les côtés verticaux mesurent `height`, la longueur horizontale `length`.
+    # l'arrière. Le côté du panneau est vertical et mesure `height`, la longueur
+    # horizontale du bas est `length`, et le bout est perpendiculaire au bas et au haut.
     height, length = v.base_support_height, v.base_support_length
+    tilt = radians(v.base_support_tilt)
     # Face arrière du panneau arrière, et bas de son bord gauche
     back_y = v.base_play + (len(v.dials) + 2) * v.material_thickness
     bottom = -v.base_size / 2
-    rise = (length + 2) * tan(radians(v.base_support_tilt))
-    near, far = back_y, back_y + length + 2
-    triangles = [
-        [(near, bottom), (far, bottom + rise), (far, bottom - 2), (near, bottom - 2)],
-        [
-            (near - 1, bottom + height - rise / (length + 2)),
-            (far, bottom + height + rise),
-            (far, bottom + height + rise + 2),
-            (near - 1, bottom + height + rise + 2),
-        ],
+    # Coins du bout : le haut est à la distance perpendiculaire `height * cos(tilt)`
+    far_bottom = back_y + length, bottom + length * tan(tilt)
+    gap = height * cos(tilt)
+    far_top = far_bottom[0] - gap * sin(tilt), far_bottom[1] + gap * cos(tilt)
+    # Le contour part un peu avant le panneau, pour couper franchement la plaque
+    slope = tan(tilt)
+    profile = [
+        (back_y - 1, bottom - slope),
+        far_bottom,
+        far_top,
+        (back_y - 1, bottom + height - slope),
     ]
+    plate_start, plate_end = back_y, back_y + length + 5
+    plate_top = bottom + height + length * slope + 10
+    plate_center = (plate_start + plate_end) / 2, (bottom - 10 + plate_top) / 2
     with BuildPart() as builder:
-        for points in triangles:
-            with BuildSketch(Plane.YZ.offset(-v.base_size / 2 - 3)):
-                Polygon(*points, align=None)
-            extrude(amount=3)
+        with BuildSketch(Plane.YZ.offset(-v.base_size / 2 - 3)), Locations(plate_center):
+            Rectangle(plate_end - plate_start, plate_top - bottom + 10)
+        extrude(amount=3)
+        with BuildSketch(Plane.YZ.offset(-v.base_size / 2 - 3)) as outline:
+            Polygon(*profile, align=None)
+            fillet(outline.vertices().sort_by(Axis.X)[-2:], v.fillet)
+        extrude(amount=3, mode=Mode.SUBTRACT)
     return builder.part
 
 
