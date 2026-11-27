@@ -6,8 +6,6 @@ Un outil en carton permettant d'effectuer des scrutins au jugement majoritaire, 
 
 Ce dépôt contient un module Python basé sur build123d permetant de dessiner les pièces à découper.
 
-Le fichier kijuma.svg correspond à l'ancienne version développée avec Inkscape, que je conserve pour le moment.
-
 ## Développement
 
 Lancez le viewer (qui devrait apparaitre sur `http://127.0.0.1:3939/viewer`) :
