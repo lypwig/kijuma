@@ -14,8 +14,8 @@ from kijuma.export import (
     export_svg,
     flat_piece,
     flat_pieces,
-    label_placement,
     main,
+    paper_pieces,
 )
 from kijuma.nest import Placement, nest
 
@@ -78,13 +78,13 @@ def test_flap_sides_are_cut() -> None:
     assert cut > contour + v.dial_flap_fold
 
 
-def test_label_svg_has_outline_and_text(tmp_path: Path) -> None:
-    """Le SVG du label a son contour à découper et son texte, sur deux calques."""
-    path = tmp_path / "label.svg"
-    export_svg([label_placement()], str(path))
+def test_paper_svg_has_cuts_and_text(tmp_path: Path) -> None:
+    """Le SVG du papier a un contour à découper par pièce, et le texte du label."""
+    path = tmp_path / "papier.svg"
+    main([str(tmp_path), "--paper"])
     root = ET.parse(path).getroot()  # noqa: S314
     layers = {g.get("id"): list(g) for g in root.iter("{http://www.w3.org/2000/svg}g")}
-    assert len(layers["Decoupe"]) == 1
+    assert len(layers["Decoupe"]) == len(paper_pieces())
     assert layers["Gravure"]
 
 

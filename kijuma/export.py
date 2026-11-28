@@ -9,6 +9,7 @@ from build123d.topology.shape_core import Shape
 
 from . import values as v
 from .base import base_sheet
+from .card import card_outline
 from .dial import dial_sheet
 from .label import label_outline, label_text
 from .nest import Piece, Placement, nest
@@ -112,19 +113,25 @@ def export_svg(placements: list[Placement], path: str) -> None:
     svg.write(path)
 
 
-def label_placement() -> Placement:
-    """Retourne le label en papier fin et son texte, dans l'angle de la feuille."""
-    outline = label_outline()
+def paper_piece(outline: Face, label: str, engravings: list[Wire] | None = None) -> Piece:
+    """Retourne le patron d'une pièce en papier, découpée suivant son contour."""
     corner = outline.bounding_box().min
     shift = Location((-corner.X, -corner.Y, 0))
-    piece = Piece(
-        v.proposal[0],
+    return Piece(
+        label,
         outline.moved(shift),
         [outline.outer_wire().moved(shift)],
         [],
-        [wire.moved(shift) for wire in label_text()],
+        [wire.moved(shift) for wire in engravings or []],
     )
-    return Placement(piece, (v.export_margin, v.export_margin))
+
+
+def paper_pieces() -> list[Piece]:
+    """Retourne les patrons du label et de la carte graduée."""
+    return [
+        paper_piece(label_outline(), v.proposal[0], list(label_text())),
+        paper_piece(card_outline(), v.card[0]),
+    ]
 
 
 def setup_logging() -> None:
@@ -148,9 +155,10 @@ def export_cardboard(path: Path) -> None:
 
 
 def export_paper(path: Path) -> None:
-    """Écrit le label en papier fin."""
+    """Range le label et la carte graduée sur la feuille de papier, et les écrit."""
+    placements = nest(paper_pieces(), sheet=v.export_paper_sheet)
     logger.info("Écriture de %s", path)
-    export_svg([label_placement()], str(path))
+    export_svg(placements, str(path))
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -38,7 +38,8 @@ def label_location() -> Location:
     """
     width, height = label_size()
     _, bottom_margin = v.base_wrap_slot_margin
-    wrap_front = u.cover_offset + u.min_gap + v.material_thickness
+    # La carte graduée est entre le rabat et le label
+    wrap_front = u.cover_offset + u.min_gap + v.material_thickness + v.card_thickness
     folded = Location(
         (
             v.base_size / 2 - width / 2,

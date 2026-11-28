@@ -51,9 +51,9 @@ def test_label_is_centered_between_slots(paper: Solid) -> None:
 
 
 def test_label_rests_against_wrap(paper: Solid) -> None:
-    """Le label est plaqué contre la face avant du rabat, sans le traverser."""
+    """Le label est plaqué contre la carte graduée, elle-même contre le rabat."""
     front = base().bounding_box().min.Y
-    assert pytest.approx(front) == paper.bounding_box().max.Y
+    assert pytest.approx(front - v.card_thickness) == paper.bounding_box().max.Y
     assert not paper.intersect(base())
 
 
@@ -63,5 +63,5 @@ def test_label_follows_open_wrap(monkeypatch: pytest.MonkeyPatch, angle: float) 
     monkeypatch.setattr(v, "base_wrap_angle", angle)
     paper = paper_part()
     assert not paper.intersect(base())
-    # Contre le rabat : à l'épaisseur du papier près, à son bord supérieur
-    assert paper.distance_to(base()) < v.proposal_thickness
+    # Contre le rabat : à l'épaisseur de la carte près
+    assert paper.distance_to(base()) < v.card_thickness + v.proposal_thickness

@@ -5,6 +5,7 @@ from build123d import *
 from . import utils as u
 from . import values as v
 from .base import base
+from .card import card
 from .dial import dial
 from .label import proposal_label
 
@@ -57,5 +58,5 @@ def assembly() -> Compound:
     dials_group = Compound(label=v.dials_label, children=dials)
     return Compound(
         label=v.assembly_label,
-        children=[base_part, screw_part, dials_group, proposal_label()],
+        children=[base_part, screw_part, dials_group, card(), proposal_label()],
     )

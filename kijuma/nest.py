@@ -170,7 +170,7 @@ def nest(
     Les patrons sont rangés du plus grand au plus petit, chacun dans l'orientation et à la
     place libre qui raccourcissent le moins la feuille. L'espace est une grille de pixels :
     les patrons sont épaissis de `gap` pour garder cet écart avec leurs voisins. Ils ne sont
-    que pivotés, jamais retournés : les gravures restent à l'endroit.
+    que pivotés, jamais retournés, et ceux qui portent du texte ne sont pas pivotés.
     """
     resolution = v.export_resolution
     taken = np.zeros((ceil(sheet[1] / resolution), ceil(sheet[0] / resolution)), dtype=bool)
@@ -178,7 +178,9 @@ def nest(
     placements = []
     logger.info("Rangement de %d pièces, rotations de %g°", len(pieces), step)
     for piece in sorted(pieces, key=lambda p: -p.outline.area):
-        spots = (best_spot(taken, piece, float(a), border) for a in np.arange(0, 360, step))
+        # Une pièce avec du texte garde son orientation, pour qu'il reste lisible
+        angles = [0.0] if piece.engravings else np.arange(0, 360, step)
+        spots = (best_spot(taken, piece, float(a), border) for a in angles)
         spot = min((s for s in spots if s), key=lambda s: s.key, default=None)
         if spot is None:
             message = f"{piece.label} ne tient pas sur la feuille {sheet}"

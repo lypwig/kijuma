@@ -22,6 +22,7 @@ dials_label = "Cadrans"  # label du groupe contenant les cadrans
 rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
 base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
 proposal = "Proposition", (0.96, 0.94, 0.86)  # texte et couleur (blanc cassé) du label
+card = "Carte graduée", (1.0, 1.0, 1.0)  # label et couleur de la carte graduée
 dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Excellent", (0.0, 0.4, 0.1)),
     ("Bien", (0.5, 0.8, 0.3)),
@@ -105,10 +106,14 @@ proposal_font_size = 12  # taille du texte du label
 proposal_fillet = 3  # rayon des coins arrondis du label
 proposal_text_color = (0.15, 0.15, 0.15)  # couleur du texte, imprimé sur le label
 
+# --- Carte graduée ---
+card_thickness = 0.1  # épaisseur du papier de la carte
+
 # === Export SVG ===
 
 # --- Feuille de carton ---
 export_sheet = (1000, 700)  # longueur et largeur de la feuille de carton, en mm
+export_paper_sheet = (420, 297)  # longueur et largeur de la feuille de papier, en mm
 export_margin = 5  # marge entre les pièces et le bord de la feuille, et autour du cadre
 export_gap = 4  # écart minimal entre deux pièces
 

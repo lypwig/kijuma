@@ -249,6 +249,11 @@ def fold_wrap(sheet: BuildSheet) -> None:
     fillet(tip.vertices(), v.fillet)
 
 
+def wrap_slot_drops() -> list[float]:
+    """Retourne la hauteur (z) des 2 fentes horizontales du rabat, sous le rivet."""
+    return [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
+
+
 def shape_wrap(sheet: BuildSheet) -> None:
     """Ajoute au rabat le disque des cadrans, centré sur le rivet, et perce ses trous."""
     half, thickness = v.base_size / 2, v.material_thickness
@@ -260,7 +265,7 @@ def shape_wrap(sheet: BuildSheet) -> None:
     # `bottom_margin` de son bas
     sides = half - side_margin, half - v.base_wrap_length + side_margin
     middle = -half + bottom_margin + v.base_wrap_slot_v_length / 2
-    drops = [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
+    drops = wrap_slot_drops()
     with BuildSketch(mode=Mode.PRIVATE) as disc:
         Circle(u.disc_radius)
     with BuildSketch(mode=Mode.PRIVATE) as holes:
