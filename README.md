@@ -16,17 +16,21 @@ Dans un autre terminal, lancez le watcher :
 
     nix-shell --run watcher
 
-Dans un autre terminal, vous pouvez lancer le linter :
+Dans un autre terminal, lancez un shell nix :
 
-    nix-shell --run linter
+    nix-shell
 
-Pour lancer les tests (non-intersection des pièces, tôle dépliée sans superposition) :
+De là vous pouvez :
 
-    nix-shell --run tester
+Lancez le linter et l'analyse de typage :
 
-## Export pour la découpe
+    uv run ruff check && uv run ty check
 
-Pour exporter en SVG tous les patrons à plat en minimisant la longueur utilisée :
+Lancer les tests (non-intersection des pièces, tôle dépliée sans superposition) :
+
+    uv run pytest
+
+Exporter en SVG pour la découpe :
 
     uv run python -m kijuma.export export/kijuma.svg
 
