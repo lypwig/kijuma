@@ -7,7 +7,7 @@ from kijuma import utils as u
 from kijuma import values as v
 from kijuma.base import base
 from kijuma.card import card, card_centers_gap, card_outline
-from kijuma.label import proposal_label
+from kijuma.label import proposal
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def test_card_rests_against_wrap_without_crossing_it() -> None:
     part, wrap = card(), base()
     assert pytest.approx(wrap.bounding_box().min.Y) == part.bounding_box().max.Y
     assert not part.intersect(wrap)
-    paper = max(proposal_label().solids(), key=lambda s: s.volume)
+    paper = max(proposal().solids(), key=lambda s: s.volume)
     assert not paper.intersect(part)
     assert paper.distance_to(part) == pytest.approx(0, abs=1e-6)
 

@@ -9,7 +9,7 @@ from build123d.topology.shape_core import Shape
 
 from . import values as v
 
-FLAT_REACH = 0.75 * v.material_thickness  # écart maximal à la face de référence
+FLAT_REACH = 0.75 * v.cardboard_thickness  # écart maximal à la face de référence
 FLAT_NORMAL = 0.99  # composante minimale de la normale d'une face parallèle à un plan
 
 disc_radius = v.dial_disc_diam / 2  # rayon du disque central
@@ -24,10 +24,10 @@ base_slot_angle = (
 
 # Position horiz. de la languette de droite : centrée entre le disque central et le cadran
 base_right_strip_pos = (v.dial_disc_diam + v.dial_diam) / 4
-base_right_strip_drop = (v.material_thickness + v.bend_radius) / 2  # abaissement languette
+base_right_strip_drop = (v.cardboard_thickness + v.bend_radius) / 2  # abaissement languette
 
 # Distance de la face avant du volet à celle du panneau avant, une fois le volet replié
-cover_offset = 2 * v.bend_radius + v.material_thickness
+cover_offset = 2 * v.bend_radius + v.cardboard_thickness
 
 # Jeu symbolique entre deux faces de tôle qui ne doivent pas se toucher, comme le rabat et
 # le volet : un contact exact, ou un bord dans le plan d'une autre face, fait échouer
@@ -36,7 +36,7 @@ min_gap = 0.001
 
 # Enfoncement du pli du volet dans le socle, pour que le rabat passe à l'extérieur du pli
 # tout en gardant le même rayon de pliage que les autres plis
-cover_inset = v.material_thickness + min_gap
+cover_inset = v.cardboard_thickness + min_gap
 
 
 def notch_half(strip_width: float) -> float:

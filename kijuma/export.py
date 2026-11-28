@@ -77,7 +77,7 @@ def flat_pieces() -> list[Piece]:
     _, sheet = base_sheet()
     pieces = [flat_piece(v.base[0], sheet)]
     for i, (label, _) in enumerate(v.dials):
-        extra = (len(v.dials) - 1 - i) * v.material_thickness
+        extra = (len(v.dials) - 1 - i) * v.cardboard_thickness
         logger.info("Construction de %s", label)
         _, sheet = dial_sheet(i * v.dial_tab_step, i * v.dial_slot_step, extra)
         pieces.append(flat_piece(label, sheet))
@@ -129,7 +129,7 @@ def paper_piece(outline: Face, label: str, engravings: list[Wire] | None = None)
 def paper_pieces() -> list[Piece]:
     """Retourne les patrons du label et de la carte graduée."""
     return [
-        paper_piece(label_outline(), v.proposal[0], list(label_text())),
+        paper_piece(label_outline(), v.proposal_sheet[0], list(label_text())),
         paper_piece(card_outline(), v.card[0]),
     ]
 
@@ -151,12 +151,15 @@ def export_cardboard(path: Path) -> None:
     used = max(p.placed().outline.bounding_box().max.X for p in placements)
     area = sum(p.piece.outline.area for p in placements)
     logger.info("%d pièces, longueur utilisée %.0f mm", len(placements), used)
-    logger.info("Taux d'utilisation : %.0f %%", 100 * area / (used * v.export_sheet[1]))
+    logger.info(
+        "Taux d'utilisation : %.0f %%",
+        100 * area / (used * v.export_cardboard_sheet_size[1]),
+    )
 
 
 def export_paper(path: Path) -> None:
     """Range le label et la carte graduée sur la feuille de papier, et les écrit."""
-    placements = nest(paper_pieces(), sheet=v.export_paper_sheet)
+    placements = nest(paper_pieces(), sheet=v.export_paper_sheet_size)
     logger.info("Écriture de %s", path)
     export_svg(placements, str(path))
 

@@ -1,4 +1,8 @@
-"""Liste des valeurs utilisées dans le projet."""
+"""
+Liste des valeurs utilisées dans le projet.
+
+Unités exprimées en mm, sauf si indiqué.
+"""
 
 # === Interaction ===
 
@@ -9,20 +13,20 @@ base_wrap_angle = 180  # angle total des 2 plis du rabat (180° : replié, 0° :
 
 # === Global ===
 
-material_thickness = 1  # épaisseur du carton, en mm
+cardboard_thickness = 1  # épaisseur du carton
+paper_thickness = 0.1  # épaisseur du papier
 fillet = 2.5  # rayon des arrondis des angles
 light_fillet = 0.75  # rayon des petits arrondis (rivet, entailles, languettes)
 bend_radius = 0.5  # rayon de courbure intérieur des pliages
-tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position, en mm
+tolerance = 0.1  # distance maximale pour retrouver un sommet par sa position
 
-# === Assemblage ===
+# === Labels et couleurs de l'assemblage ===
 
 assembly_label = "Kijuma"
-dials_label = "Cadrans"  # label du groupe contenant les cadrans
-rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
-base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
-proposal = "Proposition", (0.96, 0.94, 0.86)  # texte et couleur (blanc cassé) du label
-card = "Carte graduée", (1.0, 1.0, 1.0)  # label et couleur de la carte graduée
+
+# --- Cadrans ---
+
+dials_group_label = "Cadrans"  # label du groupe contenant les cadrans
 dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Excellent", (0.0, 0.4, 0.1)),
     ("Bien", (0.5, 0.8, 0.3)),
@@ -30,6 +34,18 @@ dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Mauvais", (1.0, 0.55, 0.0)),
     ("À rejeter", (0.85, 0.1, 0.1)),
 )
+
+# --- Proposition ---
+
+proposal_group_label = "Proposition"
+proposal_sheet = "Papier", (0.96, 0.94, 0.86)  # texte et couleur (blanc cassé) du label
+proposal_text = "Texte", (0.15, 0.15, 0.15)  # contenu du texte label et sa couleur
+
+# --- Autre ---
+
+base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
+rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
+card = "Carte graduée", (0.96, 0.94, 0.86)  # label et couleur de la carte graduée
 
 # === Socle ===
 
@@ -52,7 +68,7 @@ base_support_tilt = 20  # inclinaison du socle, vers l'arrière, une fois posé 
 base_cover_height = base_size / 2  # hauteur du volet
 base_cover_length = base_size / 2  # longueur du volet, depuis le bord droit du panneau
 base_cover_disc_diam = 91  # diamètre du disque du volet, centré sur le rivet
-base_cover_teeth_step = 3  # pas angulaire des dents, en ° (≈ 2 mm)
+base_cover_teeth_step = 3  # pas angulaire des dents, en °
 base_cover_teeth_depth = 0.75  # profondeur des dents de l'arc du disque
 
 # --- Rabat (contourne la tranche droite, recouvre le volet) ---
@@ -61,7 +77,7 @@ base_wrap_length = 180  # longueur du rabat replié sur la face avant, après la
 base_wrap_slot_width = 2  # largeur des fentes du rabat, aux bouts arrondis
 base_wrap_slot_drop = 20  # distance de la 1re fente horizontale sous le rivet
 base_wrap_slot_step = 20  # écart entre les 2 fentes horizontales
-base_wrap_slot_h_length = 100  # longueur des fentes horizontales, centrées sur le rivet
+base_wrap_slot_h_length = 110  # longueur des fentes horizontales, centrées sur le rivet
 base_wrap_slot_margin = 25, 20  # distance des fentes verticales aux côtés et au bas
 base_wrap_slot_v_length = 30  # longueur des fentes verticales
 
@@ -86,7 +102,7 @@ dial_stop_loc = 5  # position de la butée depuis l'extérieur du cadran
 dial_flap_depth = 0.6  # hauteur de la languette pliée vers l'avant, depuis le cadran
 dial_flap_fold = 5  # longueur du bout de la languette rabattu vers le centre
 dial_flap_gap = 0.3  # retrait de la pliure à chaque bout, pour éviter tout chevauchement
-dial_flap_teeth_step = 2.368  # pas des dents du bout de la languette intérieure, en mm
+dial_flap_teeth_step = 2.368  # pas des dents du bout de la languette intérieure
 dial_flap_teeth_depth = 0.75  # profondeur des dents du bout de la languette intérieure
 
 # === Fixations ===
@@ -94,34 +110,31 @@ dial_flap_teeth_depth = 0.75  # profondeur des dents du bout de la languette int
 # --- Rivet ---
 rivet_diam = 5  # diamètre de la tige du rivet, et des trous qui la reçoivent
 # Longueur du rivet : volet, panneaux, cadrans, jeu et dépassement
-rivet_length = (3 + len(dials)) * material_thickness + 2 * bend_radius + 1
+rivet_length = (3 + len(dials)) * cardboard_thickness + 2 * bend_radius + 1
 rivet_head = 8, 1  # diamètre et épaisseur de la tête du rivet
 rivet_head_hole = rivet_head[0] + 1  # diamètre du trou du rabat, pour la tête du rivet
 
 # === Label ===
 
-proposal_thickness = 0.1  # épaisseur du papier du label
 proposal_font = "Arial"  # police du texte du label, qui doit être installée
 proposal_font_size = 12  # taille du texte du label
-proposal_fillet = 3  # rayon des coins arrondis du label
-proposal_text_color = (0.15, 0.15, 0.15)  # couleur du texte, imprimé sur le label
+proposal_text_content = "Proposition"  # Contenu du texte par défaut à graver sur le label
 
 # --- Carte graduée ---
-card_thickness = 0.1  # épaisseur du papier de la carte
 
 # === Export SVG ===
 
 # --- Feuille de carton ---
-export_sheet = (1000, 700)  # longueur et largeur de la feuille de carton, en mm
-export_paper_sheet = (420, 297)  # longueur et largeur de la feuille de papier, en mm
+export_cardboard_sheet_size = (1000, 700)  # longueur et largeur de la feuille de carton
+export_paper_sheet_size = (420, 297)  # longueur et largeur de la feuille de papier
 export_margin = 5  # marge entre les pièces et le bord de la feuille, et autour du cadre
 export_gap = 4  # écart minimal entre deux pièces
 
-# --- Rangement ---
+# --- Positionnement des découpes ---
 export_rotation_step = 15  # pas des rotations essayées pour ranger chaque pièce, en degrés
-export_resolution = 1  # taille des pixels de la grille de rangement, en mm
+export_resolution = 1  # taille des pixels de la grille de rangement
 
-# --- Lignes du SVG : épaisseur (mm), couleur et type de trait (nom d'un `LineType`) ---
+# --- Lignes du SVG : épaisseur, couleur et type de trait (nom d'un `LineType`) ---
 export_cut_line = 0.2, "red", "CONTINUOUS"  # découpe
 export_fold_line = 0.2, "blue", "ISO_DASH"  # pliage
 export_frame_line = 0.3, "gray", "CONTINUOUS"  # cadre autour des découpes

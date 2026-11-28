@@ -44,7 +44,7 @@ def flap_span(depth: float) -> tuple[float, float]:
     # Mesuré sur une tôle d'essai pliée comme le cadran : le dépliage tient compte des
     # rayons de pliage, et le retrait est la distance entre la charnière et le bout.
     size = 10
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
         with BuildSketch():
             Rectangle(size, size)
@@ -195,7 +195,7 @@ def dial_sheet(
     """
     flap_start, slot_length = flap_angles(slot_extra)
     depth = v.dial_flap_depth + flap_extra
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
             with BuildSketch() as sketch:

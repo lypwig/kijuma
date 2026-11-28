@@ -5,12 +5,12 @@ from build123d import *
 
 from kijuma import values as v
 from kijuma.base import base
-from kijuma.label import label_outline, label_text, proposal_label
+from kijuma.label import label_outline, label_text, proposal
 
 
 def paper_part() -> Solid:
     """Retourne le papier du label, à sa place sur l'assemblage."""
-    return max(proposal_label().solids(), key=lambda s: s.volume)
+    return max(proposal().solids(), key=lambda s: s.volume)
 
 
 @pytest.fixture

@@ -25,7 +25,7 @@ def outline() -> list[Edge]:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(v, "base_support_angle", 90)
         body = max(base().solids(), key=lambda s: s.volume)
-    outer_x = -(v.base_size / 2 + v.material_thickness / 2)  # au-delà du panneau arrière
+    outer_x = -(v.base_size / 2 + v.cardboard_thickness / 2)  # au-delà du panneau arrière
     faces = [
         f
         for f in body.faces()
@@ -112,7 +112,7 @@ def test_support_end_is_square(outline: list[Edge]) -> None:
 def test_support_length(outline: list[Edge]) -> None:
     """Le bas de la patte s'étend de la longueur voulue derrière le panneau arrière."""
     near, bottom, _, _ = lines(outline)
-    back = (len(v.dials) + 2) * v.material_thickness + v.bend_radius  # fin du pli
+    back = (len(v.dials) + 2) * v.cardboard_thickness + v.bend_radius  # fin du pli
     # Le congé retire `fillet` de chaque côté du coin vif (angle droit)
     reach = (bottom.length + v.fillet) * cos(radians(v.base_support_tilt))
     assert near.center().Y + reach == pytest.approx(
@@ -123,7 +123,7 @@ def test_support_length(outline: list[Edge]) -> None:
 
 def test_cover_is_folded_over_front_face(body: Solid) -> None:
     """Le volet recouvre la face avant, du bas du panneau et jusqu'au disque du rivet."""
-    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    outer_y = -(2 * v.bend_radius + v.cardboard_thickness)  # face avant du volet
     covers = [
         f
         for f in body.faces()
@@ -176,7 +176,7 @@ def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
 def wrap_outer_y() -> float:
     """Retourne l'ordonnée de la face avant du rabat, replié devant le volet."""
     # Le rabat est contre la face avant du volet, à un jeu symbolique près
-    return -(u.cover_offset + u.min_gap + v.material_thickness)
+    return -(u.cover_offset + u.min_gap + v.cardboard_thickness)
 
 
 def test_wrap_is_folded_over_cover(body: Solid) -> None:
@@ -199,7 +199,7 @@ def test_wrap_is_folded_over_cover(body: Solid) -> None:
     assert pytest.approx(max(v.base_wrap_height - half, disc), abs=TOLERANCE) == box.max.Z
     # La tranche contourne le bord, avec le même rayon de pli que les autres plis
     edge = body.bounding_box().max.X
-    expected = half + v.bend_radius + v.material_thickness
+    expected = half + v.bend_radius + v.cardboard_thickness
     assert pytest.approx(expected, abs=TOLERANCE) == edge
     walls = [
         f
@@ -304,7 +304,7 @@ def test_wrap_unfolds_to_its_angle(open_wrap: Solid) -> None:
 
 def test_cover_left_side_goes_down_at_45_degrees(body: Solid) -> None:
     """Depuis le point le plus bas du disque, le bord du volet descend à 45° à droite."""
-    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    outer_y = -(2 * v.bend_radius + v.cardboard_thickness)  # face avant du volet
     # Arêtes obliques de la face avant du volet
     slanted = [
         e
@@ -349,7 +349,7 @@ def test_front_panel_corner_above_fold_is_sharp(body: Solid) -> None:
         if f.geom_type == GeomType.CYLINDER
         and half - v.fillet <= f.center().X <= half
         and -v.fillet <= f.center().Z <= 0
-        and 0 <= f.center().Y <= v.material_thickness
+        and 0 <= f.center().Y <= v.cardboard_thickness
     ]
     assert not rounded
 
@@ -381,7 +381,7 @@ def test_support_angle_is_configurable(
     body = max(part.solids(), key=lambda s: s.volume)
     rad = radians(max(angle, 0.01))
     normal = -sin(rad), -cos(rad)  # normale extérieure de la patte
-    back_y = (len(v.dials) + 2) * v.material_thickness
+    back_y = (len(v.dials) + 2) * v.cardboard_thickness
     walls = [
         f
         for f in body.faces()
@@ -397,7 +397,7 @@ def test_support_angle_is_configurable(
 
 def test_cover_disc_arc_has_teeth(body: Solid) -> None:
     """L'arc du disque du volet est denté au pas exact, avec des dents entières."""
-    outer_y = -(2 * v.bend_radius + v.material_thickness)  # face avant du volet
+    outer_y = -(2 * v.bend_radius + v.cardboard_thickness)  # face avant du volet
     radius, step = v.base_cover_disc_diam / 2, radians(v.base_cover_teeth_step)
     # Un côté de dent relie un sommet, sur le cercle, au creux à mi-pas, plus profond
     deep = radius - v.base_cover_teeth_depth

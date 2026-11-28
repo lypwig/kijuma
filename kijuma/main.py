@@ -10,6 +10,6 @@ show(assembly())
 
 anim = Animation()
 label = v.dials[v.animated_dial - 1][0]
-path = f"/{v.assembly_label}/{v.dials_label}/{label}"
+path = f"/{v.assembly_label}/{v.dials_group_label}/{label}"
 anim.add_track(path, "ry", [0, 1, 2], [0, 90, 180])
 anim.animate(1)

@@ -7,7 +7,7 @@ from . import values as v
 from .base import base
 from .card import card
 from .dial import dial
-from .label import proposal_label
+from .label import proposal
 
 
 def rivet(length: float) -> Part:
@@ -29,7 +29,6 @@ def assembly() -> Compound:
     """Construit l'assemblage."""
     base_part = base()
     screw_part = rivet(v.rivet_length)
-    thickness = v.material_thickness
 
     # Socle : siège de la vis sur la face avant du volet, axe Z vers -Y
     RigidJoint("screw_seat", base_part, Location((0, -u.cover_offset, 0), (90, 0, 0)))
@@ -38,16 +37,16 @@ def assembly() -> Compound:
 
     dials = []
     for i, (label, color) in enumerate(v.dials):
-        flap_extra = (len(v.dials) - 1 - i) * thickness
+        flap_extra = (len(v.dials) - 1 - i) * v.cardboard_thickness
         dial_part = dial(i * v.dial_tab_step, i * v.dial_slot_step, flap_extra)
         dial_part.label = label
         dial_part.color = Color(*color)
         # Rivet : pivot du cadran, sous la tête : volet, panneau avant, un cadran par rang
-        depth = u.cover_offset + (i + 1) * thickness
+        depth = u.cover_offset + (i + 1) * v.cardboard_thickness
         axis = Axis((0, 0, -depth), (0, 0, 1))
         RevoluteJoint(f"pivot {i + 1}", screw_part, axis=axis)
         # Cadran : repère sur sa face avant (y = -épaisseur), axe Z vers -Y
-        RigidJoint("pivot", dial_part, Location((0, -thickness, 0), (90, 0, 0)))
+        RigidJoint("pivot", dial_part, Location((0, -v.cardboard_thickness, 0), (90, 0, 0)))
         dials.append(dial_part)
 
     # Les joints sont tous créés avant d'attacher les pièces, qui déplace le rivet
@@ -55,8 +54,8 @@ def assembly() -> Compound:
     for i, dial_part in enumerate(reversed(dials)):
         screw_part.joints[f"pivot {i + 1}"].attach(dial_part.joints["pivot"])
 
-    dials_group = Compound(label=v.dials_label, children=dials)
+    dials_group = Compound(label=v.dials_group_label, children=dials)
     return Compound(
         label=v.assembly_label,
-        children=[base_part, screw_part, dials_group, card(), proposal_label()],
+        children=[base_part, screw_part, dials_group, card(), proposal()],
     )

@@ -28,8 +28,8 @@ def card_location() -> Location:
     sur le rivet : il épouse ainsi l'arrondi du disque des cadrans. Elle suit le rabat quand
     celui-ci est ouvert.
     """
-    wrap_front = u.cover_offset + u.min_gap + v.material_thickness
-    folded = Location((0, -(wrap_front + v.card_thickness / 2), -card_centers_gap() / 2))
+    wrap_front = u.cover_offset + u.min_gap + v.cardboard_thickness
+    folded = Location((0, -(wrap_front + v.paper_thickness), -card_centers_gap() / 2))
     return wrap_fold() * folded
 
 
@@ -37,9 +37,9 @@ def card() -> Part:
     """Construit la carte graduée en papier."""
     # Le plan XZ a sa normale vers -Y, vers l'avant : le papier est centré sur y = 0
     with BuildPart() as builder:
-        with BuildSketch(Plane.XZ.offset(v.card_thickness / 2)):
+        with BuildSketch(Plane.XZ.offset(v.paper_thickness)):
             insert(card_outline())
-        extrude(amount=-v.card_thickness)
+        extrude(amount=-v.paper_thickness)
     part = builder.part
     part.label = v.card[0]
     part.color = Color(*v.card[1])

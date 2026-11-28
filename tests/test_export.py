@@ -48,7 +48,7 @@ def test_pieces_stay_apart(placements: list[Placement]) -> None:
 
 def test_pieces_stay_within_margins(placements: list[Placement]) -> None:
     """Les patrons restent dans la feuille, à distance de son bord."""
-    length, width = v.export_sheet
+    length, width = v.export_cardboard_sheet_size
     margin = v.export_margin - v.export_resolution
     for outline in placed_outlines(placements):
         box = outline.bounding_box()

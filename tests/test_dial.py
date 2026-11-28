@@ -20,7 +20,7 @@ AREA_TOLERANCE = 1e-3  # mm²
 
 def flat_pattern(index: int) -> tuple[Face, list[Face], Sketch, Vector]:
     """Retourne la plaque, la languette dépliée, son empreinte et l'origine du cadran."""
-    extra = (len(v.dials) - 1 - index) * v.material_thickness
+    extra = (len(v.dials) - 1 - index) * v.cardboard_thickness
     _, sheet = dial_sheet(index * v.dial_tab_step, index * v.dial_slot_step, extra)
     flat, _ = unfold(sheet.sheet_local, sheet_parameters=sheet.sheet_parameters)
     plate, *flap = sorted(flat.faces(), key=lambda f: -f.area)
@@ -55,7 +55,7 @@ def test_pocket_is_covered_by_flap(index: int) -> None:
     footprint = pocket.face().moved(Location(origin))
     covered = sum((footprint & f).area for f in flap)
     # Seules les dents, taillées dans le bout de la languette, ne recouvrent pas le vide
-    extra = (len(v.dials) - 1 - index) * v.material_thickness
+    extra = (len(v.dials) - 1 - index) * v.cardboard_thickness
     start, end = flap_angles(index * v.dial_slot_step)
     teeth = flap_teeth(start, end, v.dial_flap_depth + extra)
     teeth_area = teeth.area if teeth is not None else 0
@@ -68,13 +68,13 @@ TOLERANCE = 0.01  # mm
 @pytest.mark.parametrize("index", range(len(v.dials)))
 def test_flap_tip_has_teeth(index: int) -> None:
     """Le bout rabattu de la languette de chaque cadran est denté de bord à bord."""
-    extra = (len(v.dials) - 1 - index) * v.material_thickness
+    extra = (len(v.dials) - 1 - index) * v.cardboard_thickness
     start, end = flap_angles(index * v.dial_slot_step)
     depth = v.dial_flap_depth + extra
     points = flap_teeth_points(start, end, depth)
     part = dial(index * v.dial_tab_step, index * v.dial_slot_step, extra)
     # Le bout rabattu est la face la plus avancée : la tôle y est à `depth + 2 e + r`
-    tip_y = -(depth + 2 * v.material_thickness + v.bend_radius)
+    tip_y = -(depth + 2 * v.cardboard_thickness + v.bend_radius)
     # Un côté de dent va du sommet au creux, un demi-pas plus loin et plus profond
     side = hypot(v.dial_flap_teeth_step / 2, v.dial_flap_teeth_depth)
     sides = [

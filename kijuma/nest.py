@@ -159,7 +159,7 @@ def best_spot(taken: Grid, piece: Piece, angle: float, margin: int) -> Spot | No
 
 def nest(
     pieces: list[Piece],
-    sheet: tuple[float, float] = v.export_sheet,
+    sheet: tuple[float, float] = v.export_cardboard_sheet_size,
     gap: float = v.export_gap,
     margin: float = v.export_margin,
     step: float = v.export_rotation_step,

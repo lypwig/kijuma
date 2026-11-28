@@ -37,7 +37,7 @@ POSITIONS = {
 def parts() -> list[Shape]:
     """Retourne le socle, le rivet et les cadrans de l'assemblage."""
     children = {c.label: c for c in assembly().children}
-    dials = list(children[v.dials_label].children)
+    dials = list(children[v.dials_group_label].children)
     return [children[v.base[0]], children[v.rivet[0]], *dials]
 
 

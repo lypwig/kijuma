@@ -80,7 +80,7 @@ def support_fold_length() -> float:
 
 def support_plane() -> Plane:
     """Retourne le plan moyen de la patte : x le long de la patte, y vertical."""
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     angle = support_angle()
     # La patte s'éloigne du panneau dans la direction `along`, `outward` est sa normale
     # extérieure. Le centre du pliage est derrière la face arrière du panneau arrière.
@@ -191,12 +191,12 @@ def wrap_wall_length() -> float:
     """Retourne la longueur droite de la tranche du rabat, entre ses deux plis."""
     # Replié, le rabat va de la face avant du panneau arrière jusqu'à devant le volet : il
     # fait l'épaisseur du socle
-    return (len(v.dials) + 2) * v.material_thickness + u.min_gap
+    return (len(v.dials) + 2) * v.cardboard_thickness + u.min_gap
 
 
 def wrap_wall_end() -> tuple[float, float]:
     """Retourne la position (x, y) du bout de la tranche, sur son plan moyen."""
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     # Le pli tourne autour d'un centre devant la face avant du panneau arrière
     angle = radians(wrap_bend_angle())
     center = v.base_size / 2, (len(v.dials) + 1) * thickness - radius
@@ -208,7 +208,7 @@ def wrap_wall_end() -> tuple[float, float]:
 
 def wrap_tip() -> tuple[float, float]:
     """Retourne la position (x, y) du bout du rabat, sur son plan moyen."""
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     angle = radians(wrap_bend_angle())
     reach = radius + thickness / 2
     # Le 2e pli tourne autour d'un centre du côté intérieur, et emporte le rabat de deux
@@ -224,7 +224,7 @@ def wrap_fold() -> Location:
     """Retourne le déplacement du rabat, de replié à son angle de pliure."""
     # Les deux plis sont verticaux. Le 2e pivote d'abord, autour de son centre, puis le
     # 1er emporte la tranche et le rabat autour de son propre centre.
-    thickness, radius, half = v.material_thickness, v.bend_radius, v.base_size / 2
+    thickness, radius, half = v.cardboard_thickness, v.bend_radius, v.base_size / 2
     delta = 90 - wrap_bend_angle()
     first = rotation((half, (len(v.dials) + 1) * thickness - radius), delta)
     # Replié, le 2e pli est contre l'extérieur du pli du volet, devant le rabat
@@ -256,7 +256,7 @@ def wrap_slot_drops() -> list[float]:
 
 def shape_wrap(sheet: BuildSheet) -> None:
     """Ajoute au rabat le disque des cadrans, centré sur le rivet, et perce ses trous."""
-    half, thickness = v.base_size / 2, v.material_thickness
+    half, thickness = v.base_size / 2, v.cardboard_thickness
     # Le plan moyen du rabat, replié contre la face avant du volet, puis déplié
     mid = Plane.XZ.offset(u.cover_offset + u.min_gap + thickness / 2)
     mid = u.to_sheet(Plane(wrap_fold() * mid.location))
@@ -283,7 +283,7 @@ def shape_cover(sheet: BuildSheet) -> None:
     radius = v.base_cover_disc_diam / 2
     # Le plan moyen du volet, replié à `bend_radius * 2` de la face avant du panneau avant
     # (y = 0), puis déplié
-    mid = Plane.XZ.offset(u.cover_offset - v.material_thickness / 2)
+    mid = Plane.XZ.offset(u.cover_offset - v.cardboard_thickness / 2)
     mid = u.to_sheet(Plane(cover_fold() * mid.location))
     # Le bord gauche du volet descend à 45° vers la droite, depuis le point le plus bas du
     # disque : on retire ce qui dépasse la droite x + z = -rayon
@@ -423,7 +423,7 @@ def strip_fit(edge: Edge, x: float, width: float) -> tuple[float, float]:
 
 def shape_strip_head(sheet: BuildSheet, x: float, wall_z: float, width: float) -> None:
     """Taille le bout de la languette en tête étroite, qui traverse le panneau arrière."""
-    thickness = v.material_thickness
+    thickness = v.cardboard_thickness
     head = width - 2 * v.base_strip_stop - 2 * v.base_strip_clearance
     # La base vient en butée sur la face avant du panneau arrière, la tête la traverse
     back_front = (len(v.dials) + 1) * thickness
@@ -447,9 +447,9 @@ def base_sheet() -> tuple[Part, BuildSheet]:
 
     Retourne la pièce épaissie et la tôle de référence, que l'on peut déplier.
     """
-    thickness, radius = v.material_thickness, v.bend_radius
+    thickness, radius = v.cardboard_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
-    spacing = len(v.dials) * v.material_thickness - 2 * radius
+    spacing = len(v.dials) * v.cardboard_thickness - 2 * radius
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
