@@ -8,7 +8,8 @@ import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.export import export_svg, flat_pieces
+from kijuma.dial import dial_sheet
+from kijuma.export import export_svg, flat_piece, flat_pieces
 from kijuma.nest import Placement, nest
 
 ROTATION_STEP = 90  # pas grossier, pour que le test reste rapide
@@ -57,3 +58,14 @@ def test_svg_has_cuts_and_folds(placements: list[Placement], tmp_path: Path) -> 
     assert set(layers) >= {"Cadre", "Decoupe", "Pliage"}
     assert layers["Decoupe"]
     assert layers["Pliage"]
+
+
+def test_flap_sides_are_cut() -> None:
+    """Les côtés de la languette dépliée, contre la tôle voisine, sont à découper."""
+    piece = flat_piece("Cadran", dial_sheet(0)[1])
+    contour = sum(
+        w.length for w in (piece.outline.outer_wire(), *piece.outline.inner_wires())
+    )
+    cut = sum(w.length for w in piece.cuts)
+    # Sans les côtés, la languette, fusionnée à la tôle, n'aurait aucun trait de découpe
+    assert cut > contour + v.dial_flap_fold

@@ -4,6 +4,7 @@ import logging
 import sys
 
 from build123d import *
+from build123d.topology.shape_core import Shape
 
 from . import values as v
 from .base import base_sheet
@@ -12,17 +13,56 @@ from .nest import Piece, Placement, nest
 
 logger = logging.getLogger(__name__)
 
+PARALLEL = 0.999  # cosinus minimal entre deux directions considérées parallèles
+TOLERANCE = 1e-3  # distance en dessous de laquelle deux points sont confondus, en mm
+
+
+def fold_joints(flat: Shape, folds: list[Edge]) -> list[Edge]:
+    """Retourne les bords des pliages par lesquels ils se raccordent aux faces voisines."""
+    joints = []
+    for fold in folds:
+        # Le pliage est la face dépliée qui contient sa ligne médiane
+        bend = min(flat.faces(), key=lambda f: f.distance_to(fold.center()))
+        direction = fold.tangent_at(0.5)
+        joints += [
+            e for e in bend.edges() if abs(e.tangent_at(0.5).dot(direction)) > PARALLEL
+        ]
+    return joints
+
+
+def cut_lines(flat: Shape, joints: list[Edge]) -> list[Wire]:
+    """
+    Retourne les traits de découpe d'une tôle dépliée.
+
+    Ce sont tous les bords des faces dépliées, sauf ceux par lesquels elles se raccordent
+    à un pliage. En particulier, les bords d'une languette dépliée, qui touchent la tôle
+    voisine sans en être reliés, sont à découper, même s'ils ne sont plus un contour.
+    """
+    edges = [edge for face in flat.faces() for edge in face.edges()]
+    pieces = edges[0].fuse(*edges[1:]).edges()  # coupés là où ils se chevauchent
+    kept = [
+        e for e in pieces if not any(j.distance_to(e.center()) < TOLERANCE for j in joints)
+    ]
+    return list(Wire.combine(kept))
+
 
 def flat_piece(label: str, sheet: BuildSheet) -> Piece:
-    """Déplie la tôle, et retourne son contour de découpe et ses lignes de pliage."""
+    """Déplie la tôle, et retourne son patron : surface, traits de découpe et pliages."""
     logger.info("Dépliage de %s", label)
     flat, faces = unfold(sheet.sheet_local, sheet_parameters=sheet.sheet_parameters)
-    # Les plats et les pliages dépliés sont fusionnés en un seul contour de découpe
+    folds = [f.bend_line for f in faces.values() if f.is_bend and f.bend_line]
+    cuts = cut_lines(flat, fold_joints(flat, folds))
+    # Les plats et les pliages, fusionnés en une seule surface, servent au rangement
     parts = flat.faces()
     outline = parts[0].fuse(*parts[1:]).clean().face()
-    folds = [f.bend_line for f in faces.values() if f.is_bend and f.bend_line]
-    shift = Location((-outline.bounding_box().min.X, -outline.bounding_box().min.Y, 0))
-    return Piece(label, outline.moved(shift), [fold.moved(shift) for fold in folds])
+    box = outline.bounding_box()
+    shift = Location((-box.min.X, -box.min.Y, 0))
+    return Piece(
+        label,
+        outline.moved(shift),
+        [cut.moved(shift) for cut in cuts],
+        [fold.moved(shift) for fold in folds],
+    )
 
 
 def flat_pieces() -> list[Piece]:
@@ -60,7 +100,7 @@ def export_svg(placements: list[Placement], path: str) -> None:
         "Cadre",
     )
     for piece in moved:
-        svg.add_shape(piece.outline.wires(), "Decoupe")
+        svg.add_shape(piece.cuts, "Decoupe")
         svg.add_shape(piece.folds, "Pliage")
     svg.write(path)
 

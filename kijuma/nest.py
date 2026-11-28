@@ -21,13 +21,15 @@ class Piece:
     """Le patron à plat d'une pièce : son contour de découpe et ses lignes de pliage."""
 
     label: str
-    outline: Face
+    outline: Face  # surface du patron, pour le rangement
+    cuts: list[Wire]  # traits de découpe : le contour, et les bords des languettes
     folds: list[Edge]
 
     def moved(self, location: Location) -> "Piece":
         """Retourne le patron déplacé."""
+        cuts = [cut.moved(location) for cut in self.cuts]
         folds = [fold.moved(location) for fold in self.folds]
-        return Piece(self.label, self.outline.moved(location), folds)
+        return Piece(self.label, self.outline.moved(location), cuts, folds)
 
     def rotated(self, angle: float) -> "Piece":
         """Retourne le patron pivoté de `angle` degrés, recalé dans l'angle (0, 0)."""
