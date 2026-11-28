@@ -6,6 +6,7 @@ from . import utils as u
 from . import values as v
 from .base import base
 from .dial import dial
+from .label import proposal_label
 
 
 def rivet(length: float) -> Part:
@@ -54,4 +55,7 @@ def assembly() -> Compound:
         screw_part.joints[f"pivot {i + 1}"].attach(dial_part.joints["pivot"])
 
     dials_group = Compound(label=v.dials_label, children=dials)
-    return Compound(label=v.assembly_label, children=[base_part, screw_part, dials_group])
+    return Compound(
+        label=v.assembly_label,
+        children=[base_part, screw_part, dials_group, proposal_label()],
+    )

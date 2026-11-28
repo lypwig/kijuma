@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from pathlib import Path
 
 from build123d import *
 from build123d.topology.shape_core import Shape
@@ -9,6 +10,7 @@ from build123d.topology.shape_core import Shape
 from . import values as v
 from .base import base_sheet
 from .dial import dial_sheet
+from .label import label_outline, label_text
 from .nest import Piece, Placement, nest
 
 logger = logging.getLogger(__name__)
@@ -90,6 +92,7 @@ def export_svg(placements: list[Placement], path: str) -> None:
     add_layer(svg, "Cadre", v.export_frame_line)
     add_layer(svg, "Decoupe", v.export_cut_line)
     add_layer(svg, "Pliage", v.export_fold_line)
+    add_layer(svg, "Gravure", v.export_engrave_line)
     moved = [p.placed() for p in placements]
     # Le cadre entoure la boîte englobante des découpes, avec la marge
     box = Compound([piece.outline for piece in moved]).bounding_box()
@@ -102,7 +105,23 @@ def export_svg(placements: list[Placement], path: str) -> None:
     for piece in moved:
         svg.add_shape(piece.cuts, "Decoupe")
         svg.add_shape(piece.folds, "Pliage")
+        svg.add_shape(piece.engravings, "Gravure")
     svg.write(path)
+
+
+def label_placement() -> Placement:
+    """Retourne le label en papier fin et son texte, dans l'angle de la feuille."""
+    outline = label_outline()
+    corner = outline.bounding_box().min
+    shift = Location((-corner.X, -corner.Y, 0))
+    piece = Piece(
+        v.proposal[0],
+        outline.moved(shift),
+        [outline.outer_wire().moved(shift)],
+        [],
+        [wire.moved(shift) for wire in label_text()],
+    )
+    return Placement(piece, (v.export_margin, v.export_margin))
 
 
 def setup_logging() -> None:
@@ -120,6 +139,9 @@ def main(path: str = "kijuma.svg") -> None:
     placements = nest(flat_pieces())
     logger.info("Écriture de %s", path)
     export_svg(placements, path)
+    paper = Path(path).with_stem(f"{Path(path).stem}-papier")
+    logger.info("Écriture de %s", paper)
+    export_svg([label_placement()], str(paper))
     used = max(p.placed().outline.bounding_box().max.X for p in placements)
     area = sum(p.piece.outline.area for p in placements)
     logger.info("%d pièces, longueur utilisée %.0f mm", len(placements), used)

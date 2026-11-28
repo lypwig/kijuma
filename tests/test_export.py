@@ -9,7 +9,7 @@ from build123d import *
 
 from kijuma import values as v
 from kijuma.dial import dial_sheet
-from kijuma.export import export_svg, flat_piece, flat_pieces
+from kijuma.export import export_svg, flat_piece, flat_pieces, label_placement
 from kijuma.nest import Placement, nest
 
 ROTATION_STEP = 90  # pas grossier, pour que le test reste rapide
@@ -69,3 +69,13 @@ def test_flap_sides_are_cut() -> None:
     cut = sum(w.length for w in piece.cuts)
     # Sans les côtés, la languette, fusionnée à la tôle, n'aurait aucun trait de découpe
     assert cut > contour + v.dial_flap_fold
+
+
+def test_label_svg_has_outline_and_text(tmp_path: Path) -> None:
+    """Le SVG du label a son contour à découper et son texte, sur deux calques."""
+    path = tmp_path / "label.svg"
+    export_svg([label_placement()], str(path))
+    root = ET.parse(path).getroot()  # noqa: S314
+    layers = {g.get("id"): list(g) for g in root.iter("{http://www.w3.org/2000/svg}g")}
+    assert len(layers["Decoupe"]) == 1
+    assert layers["Gravure"]

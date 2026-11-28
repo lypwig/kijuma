@@ -1,7 +1,7 @@
 """Range des patrons à plat sur une feuille, en minimisant la longueur utilisée."""
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import pairwise
 from math import ceil
 
@@ -24,12 +24,14 @@ class Piece:
     outline: Face  # surface du patron, pour le rangement
     cuts: list[Wire]  # traits de découpe : le contour, et les bords des languettes
     folds: list[Edge]
+    engravings: list[Wire] = field(default_factory=list)  # textes à graver ou imprimer
 
     def moved(self, location: Location) -> "Piece":
         """Retourne le patron déplacé."""
         cuts = [cut.moved(location) for cut in self.cuts]
         folds = [fold.moved(location) for fold in self.folds]
-        return Piece(self.label, self.outline.moved(location), cuts, folds)
+        engravings = [engraving.moved(location) for engraving in self.engravings]
+        return Piece(self.label, self.outline.moved(location), cuts, folds, engravings)
 
     def rotated(self, angle: float) -> "Piece":
         """Retourne le patron pivoté de `angle` degrés, recalé dans l'angle (0, 0)."""

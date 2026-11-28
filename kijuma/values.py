@@ -5,7 +5,7 @@
 animated_dial = 1  # numéro du cadran à animer, de 1 à len(dials)
 base_support_angle = 180  # angle du pli du support par rapport au panneau arrière
 base_cover_angle = 180  # angle du pli du volet par rapport au panneau avant (180° = replié)
-base_wrap_angle = 180  # angle total des 2 plis du rabat (180° : replié, 0° : à plat)
+base_wrap_angle = 90  # angle total des 2 plis du rabat (180° : replié, 0° : à plat)
 
 # === Global ===
 
@@ -21,6 +21,7 @@ assembly_label = "Kijuma"
 dials_label = "Cadrans"  # label du groupe contenant les cadrans
 rivet = "Rivet", (0.3, 0.3, 0.3)  # label et couleur du rivet
 base = "Socle", (0.7, 0.7, 0.7)  # label et couleur (r, g, b) du socle
+proposal = "Proposition", (0.96, 0.94, 0.86)  # texte et couleur (blanc cassé) du label
 dials = (  # label et couleur de chaque cadran, de l'arrière à l'avant
     ("Excellent", (0.0, 0.4, 0.1)),
     ("Bien", (0.5, 0.8, 0.3)),
@@ -96,6 +97,12 @@ rivet_length = (3 + len(dials)) * material_thickness + 2 * bend_radius + 1
 rivet_head = 8, 1  # diamètre et épaisseur de la tête du rivet
 rivet_head_hole = rivet_head[0] + 1  # diamètre du trou du rabat, pour la tête du rivet
 
+# === Label ===
+
+proposal_thickness = 0.1  # épaisseur du papier du label
+proposal_font_size = 12  # taille du texte du label
+proposal_text_color = (0.15, 0.15, 0.15)  # couleur du texte, imprimé sur le label
+
 # === Export SVG ===
 
 # --- Feuille de carton ---
@@ -111,3 +118,4 @@ export_resolution = 1  # taille des pixels de la grille de rangement, en mm
 export_cut_line = 0.2, "red", "CONTINUOUS"  # découpe
 export_fold_line = 0.2, "blue", "ISO_DASH"  # pliage
 export_frame_line = 0.3, "gray", "CONTINUOUS"  # cadre autour des découpes
+export_engrave_line = 0.1, "black", "CONTINUOUS"  # texte gravé ou imprimé
