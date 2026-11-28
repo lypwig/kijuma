@@ -8,10 +8,16 @@ from kijuma.base import base
 from kijuma.label import label_outline, label_text, proposal_label
 
 
-@pytest.fixture(scope="module")
-def paper() -> Solid:
-    """Le papier du label, à sa place sur l'assemblage."""
+def paper_part() -> Solid:
+    """Retourne le papier du label, à sa place sur l'assemblage."""
     return max(proposal_label().solids(), key=lambda s: s.volume)
+
+
+@pytest.fixture
+def paper(monkeypatch: pytest.MonkeyPatch) -> Solid:
+    """Le papier du label, avec le rabat replié."""
+    monkeypatch.setattr(v, "base_wrap_angle", 180)
+    return paper_part()
 
 
 def test_label_has_wrap_width_and_slot_height() -> None:
@@ -49,3 +55,13 @@ def test_label_rests_against_wrap(paper: Solid) -> None:
     front = base().bounding_box().min.Y
     assert pytest.approx(front) == paper.bounding_box().max.Y
     assert not paper.intersect(base())
+
+
+@pytest.mark.parametrize("angle", [0, 45, 90, 135])
+def test_label_follows_open_wrap(monkeypatch: pytest.MonkeyPatch, angle: float) -> None:
+    """Le label suit le rabat ouvert : il reste contre lui, sans traverser le socle."""
+    monkeypatch.setattr(v, "base_wrap_angle", angle)
+    paper = paper_part()
+    assert not paper.intersect(base())
+    # Contre le rabat : à l'épaisseur du papier près, à son bord supérieur
+    assert paper.distance_to(base()) < v.proposal_thickness
