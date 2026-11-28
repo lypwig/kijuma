@@ -7,10 +7,9 @@ créé dans la même fonction que lui.
 """
 
 from math import asin, ceil, cos, degrees, floor, radians, sin, sqrt, tan
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from build123d import *
-from build123d.topology import Shape
 
 from . import utils as u
 from . import values as v
@@ -95,8 +94,8 @@ def support_plane() -> Plane:
     return Plane((x, y, 0), x_dir=(*along, 0), z_dir=(-outward[0], -outward[1], 0))
 
 
-def support_trim() -> Part:
-    """Construit la matière à retirer de la patte pour lui donner son contour final."""
+def trim_support(sheet: BuildSheet) -> None:
+    """Taille la patte du support en parallélogramme au bout carré, aux coins arrondis."""
     # Posé sur son support, le socle est incliné de `tilt` vers l'arrière : le bas de la
     # patte est alors horizontal. Dans le modèle (qui ne pivote pas), il monte donc vers
     # l'arrière, de `tilt` mesuré dans le plan de la patte, quel que soit son angle de
@@ -105,38 +104,26 @@ def support_trim() -> Part:
     # côté du panneau, vertical, est donc plus long que `width`.
     width, length = v.base_support_height, v.base_support_length
     fold = support_fold_length()
-    thickness, radius = v.material_thickness, v.bend_radius
     tilt = radians(v.base_support_tilt)
     slope = tan(tilt)  # montée par longueur de patte
     bottom = -v.base_size / 2
     # Coins du bout : le haut est à la distance perpendiculaire `width`
     far_bottom = length, bottom + length * slope
     far_top = far_bottom[0] - width * sin(tilt), far_bottom[1] + width * cos(tilt)
-    # Le contour et la plaque débordent derrière la fin du pli, pour couper tout le pli
-    start = -(radius + thickness) - 1
-    profile = [
-        (start - 1, bottom + (start - 1) * slope),
-        far_bottom,
-        far_top,
-        (start - 1, bottom + fold + (start - 1) * slope),
-    ]
-    plate_end = length + 5
-    plate_top = bottom + fold + length * slope + 10
-    plate_center = (start + plate_end) / 2, (bottom - 10 + plate_top) / 2
-    # Épais de part et d'autre de la patte ; le panneau arrière lui-même est préservé
-    plane = support_plane().offset(-3 * thickness)
-    half, back_y = v.base_size / 2, (len(v.dials) + 2) * thickness
-    with BuildPart() as builder:
-        with BuildSketch(plane), Locations(plate_center):
-            Rectangle(plate_end - start, plate_top - bottom + 10)
-        extrude(amount=6 * thickness)
-        with BuildSketch(plane) as outline:
-            Polygon(*profile, align=None)
-            fillet(outline.vertices().sort_by(Axis.X)[-2:], v.fillet)
-        extrude(amount=6 * thickness, mode=Mode.SUBTRACT)
-        with Locations((0, back_y - 50, 0)):
-            Box(2 * half, 100, 4 * half, mode=Mode.SUBTRACT)
-    return builder.part
+    with BuildSketch(mode=Mode.PRIVATE) as outline:
+        Polygon((0, bottom), far_bottom, far_top, (0, bottom + fold), align=None)
+        fillet(outline.vertices().sort_by(Axis.X)[-2:], v.fillet)
+    with (
+        BuildSketch(mode=Mode.PRIVATE) as flange_face,
+        Locations((length / 2, bottom + fold / 2)),
+    ):
+        Rectangle(length, fold)
+    # Le pli ne fait que la hauteur du côté du panneau : la patte est d'abord un
+    # rectangle, que l'on rogne en bas et que l'on complète en haut pour en faire le
+    # parallélogramme
+    mid = u.to_sheet(support_plane())
+    u.sketch_on(sheet, mid, flange_face.sketch - outline.sketch, Mode.SUBTRACT)
+    u.sketch_on(sheet, mid, outline.sketch - flange_face.sketch)
 
 
 def fold_support(sheet: BuildSheet) -> None:
@@ -144,9 +131,7 @@ def fold_support(sheet: BuildSheet) -> None:
     back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
     target = -v.base_size / 2, 0, back_z
     edge = sheet.rims().filter_by(Axis.Y).sort_by_distance(target)[0]
-    # La patte déborde vers le haut de ce que le bas du parallélogramme monte
-    rise = v.base_support_length * tan(radians(v.base_support_tilt))
-    gaps = support_gaps(edge, support_fold_length() + rise)
+    gaps = support_gaps(edge, support_fold_length())
     flange(
         edge,
         v.base_support_length,
@@ -154,6 +139,7 @@ def fold_support(sheet: BuildSheet) -> None:
         gaps=gaps,
         length_from=LengthFrom.TANGENT,
     )
+    trim_support(sheet)
 
 
 def cover_angle() -> float:
@@ -161,12 +147,18 @@ def cover_angle() -> float:
     return max(v.base_cover_angle, MIN_BEND_ANGLE)
 
 
-def unfold_cover[T: Shape](shape: T) -> T:
-    """Fait pivoter une pièce du volet, construite repliée à 180°, à son angle de pli."""
+def rotation(axis: tuple[float, float], angle: float) -> Location:
+    """Retourne la rotation de `angle` degrés autour de l'axe vertical par `axis`."""
+    x, y = axis
+    return Location((x, y, 0)) * Rotation(0, 0, angle) * Location((-x, -y, 0))
+
+
+def cover_fold() -> Location:
+    """Retourne le déplacement qui fait pivoter le volet, de replié à 180° à son angle."""
     # Le pli est vertical, à l'angle du bord droit du panneau avant, enfoncé dans le socle :
     # son centre est à `bend_radius` devant la face avant (y = 0)
-    axis = Axis((v.base_size / 2 - u.cover_inset, -v.bend_radius, 0), (0, 0, 1))
-    return shape.rotate(axis, 180 - cover_angle())
+    axis = v.base_size / 2 - u.cover_inset, -v.bend_radius
+    return rotation(axis, 180 - cover_angle())
 
 
 def bottom_gaps(edge: Edge, height: float) -> tuple[float, float]:
@@ -199,7 +191,7 @@ def wrap_wall_length() -> float:
     """Retourne la longueur droite de la tranche du rabat, entre ses deux plis."""
     # Replié, le rabat va de la face avant du panneau arrière jusqu'à devant le volet : il
     # fait l'épaisseur du socle
-    return (len(v.dials) + 2) * v.material_thickness + u.wrap_clearance
+    return (len(v.dials) + 2) * v.material_thickness + u.min_gap
 
 
 def wrap_wall_end() -> tuple[float, float]:
@@ -228,16 +220,16 @@ def wrap_tip() -> tuple[float, float]:
     return start[0] + length * cos(2 * angle), start[1] - length * sin(2 * angle)
 
 
-def unfold_wrap[T: Shape](shape: T) -> T:
-    """Fait pivoter une pièce du rabat, construite repliée, à l'angle de ses plis."""
+def wrap_fold() -> Location:
+    """Retourne le déplacement du rabat, de replié à son angle de pliure."""
     # Les deux plis sont verticaux. Le 2e pivote d'abord, autour de son centre, puis le
     # 1er emporte la tranche et le rabat autour de son propre centre.
     thickness, radius, half = v.material_thickness, v.bend_radius, v.base_size / 2
-    first = Axis((half, (len(v.dials) + 1) * thickness - radius, 0), (0, 0, 1))
-    # Replié, le 2e pli est contre l'extérieur du pli du volet, devant le rabat
-    second = Axis((half, -(radius + thickness + u.wrap_clearance), 0), (0, 0, 1))
     delta = 90 - wrap_bend_angle()
-    return shape.rotate(second, delta).rotate(first, delta)
+    first = rotation((half, (len(v.dials) + 1) * thickness - radius), delta)
+    # Replié, le 2e pli est contre l'extérieur du pli du volet, devant le rabat
+    second = rotation((half, -(radius + thickness + u.min_gap)), delta)
+    return first * second
 
 
 def fold_wrap(sheet: BuildSheet) -> None:
@@ -257,11 +249,63 @@ def fold_wrap(sheet: BuildSheet) -> None:
     fillet(tip.vertices(), v.fillet)
 
 
+def shape_wrap(sheet: BuildSheet) -> None:
+    """Ajoute au rabat le disque des cadrans, centré sur le rivet, et perce ses trous."""
+    half, thickness = v.base_size / 2, v.material_thickness
+    # Le plan moyen du rabat, replié contre la face avant du volet, puis déplié
+    mid = Plane.XZ.offset(u.cover_offset + u.min_gap + thickness / 2)
+    mid = u.to_sheet(Plane(wrap_fold() * mid.location))
+    side_margin, bottom_margin = v.base_wrap_slot_margin
+    # Fentes verticales à `side_margin` des deux côtés du rabat, tranche et bout, et à
+    # `bottom_margin` de son bas
+    sides = half - side_margin, half - v.base_wrap_length + side_margin
+    middle = -half + bottom_margin + v.base_wrap_slot_v_length / 2
+    drops = [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
+    with BuildSketch(mode=Mode.PRIVATE) as disc:
+        Circle(u.disc_radius)
+    with BuildSketch(mode=Mode.PRIVATE) as holes:
+        Circle(v.rivet_head_hole / 2)
+        with Locations(*[(0, y) for y in drops]):
+            SlotOverall(v.base_wrap_slot_h_length, v.base_wrap_slot_width)
+        with Locations(*[(x, middle) for x in sides]):
+            SlotOverall(v.base_wrap_slot_v_length, v.base_wrap_slot_width, rotation=90)
+    u.sketch_on(sheet, mid, disc.sketch)
+    u.sketch_on(sheet, mid, holes.sketch, Mode.SUBTRACT)
+
+
+def shape_cover(sheet: BuildSheet) -> None:
+    """Ajoute au volet le disque centré sur le rivet, denté et percé du trou du rivet."""
+    radius = v.base_cover_disc_diam / 2
+    # Le plan moyen du volet, replié à `bend_radius * 2` de la face avant du panneau avant
+    # (y = 0), puis déplié
+    mid = Plane.XZ.offset(u.cover_offset - v.material_thickness / 2)
+    mid = u.to_sheet(Plane(cover_fold() * mid.location))
+    # Le bord gauche du volet descend à 45° vers la droite, depuis le point le plus bas du
+    # disque : on retire ce qui dépasse la droite x + z = -rayon
+    reach = v.base_size
+    below = (0, -radius), (reach, -radius - reach), (0, -radius - reach)
+    with BuildSketch(mode=Mode.PRIVATE) as disc:
+        Circle(radius)
+    # Les dents ne touchent que le disque, hors du volet
+    with BuildSketch(mode=Mode.PRIVATE) as holes:
+        Polygon(*cover_teeth_outline(), align=None)
+        Polygon(*below, align=None)
+        Circle(v.rivet_diam / 2)
+    u.sketch_on(sheet, mid, disc.sketch)
+    u.sketch_on(sheet, mid, holes.sketch, Mode.SUBTRACT)
+    # Congé de l'angle entre la pente et le bas du volet ; l'arc du disque reste vif
+    corner = Vector(v.base_size / 2 - radius, -v.base_size / 2, 0)
+    corner = cast("Vector", mid.from_local_coords(corner))
+    fillet(sheet.vertices().sort_by_distance(corner)[:1], v.fillet)
+
+
 def fold_sides(sheet: BuildSheet) -> None:
     """Plie les côtés du socle : support, volet de la face avant et rabat de la tranche."""
     fold_support(sheet)
     fold_cover(sheet)
+    shape_cover(sheet)
     fold_wrap(sheet)
+    shape_wrap(sheet)
 
 
 def cover_teeth_span() -> tuple[float, float]:
@@ -282,8 +326,8 @@ def cover_teeth_points() -> list[tuple[float, float]]:
     return [(j * step / 2, depth * (j % 2)) for j in range(2 * first, 2 * last + 1)]
 
 
-def cover_teeth() -> Part:
-    """Construit la matière à retirer de l'arc du disque du volet pour y faire des dents."""
+def cover_teeth_outline() -> list[tuple[float, float]]:
+    """Retourne le contour de la matière à retirer de l'arc du disque, pour les dents."""
     radius = v.base_cover_disc_diam / 2
     points = cover_teeth_points()
 
@@ -294,79 +338,7 @@ def cover_teeth() -> Part:
     # pour retirer aussi l'arc
     teeth = [polar(radius - depth, angle) for angle, depth in points]
     outside = [polar(radius + 1, angle) for angle, _ in reversed(points)]
-    # Hors de la face avant du panneau, pour ne couper que le volet
-    plane = Plane.XZ.offset(2 * v.bend_radius - 0.5)
-    with BuildPart() as builder:
-        with BuildSketch(plane):
-            Polygon(*teeth, *outside, align=None)
-        extrude(amount=v.material_thickness + 1)
-    return builder.part
-
-
-def add_cover_disc(body: Compound) -> Compound:
-    """Ajoute au volet le disque centré sur le rivet, percé du trou du rivet."""
-    thickness = v.material_thickness
-    radius = v.base_cover_disc_diam / 2
-    # Le volet est replié à `bend_radius * 2` de la face avant du panneau avant (y = 0)
-    plane = Plane.XZ.offset(2 * v.bend_radius)
-    center = Align.CENTER, Align.CENTER
-    with BuildPart() as disc, Locations(plane):
-        Cylinder(radius, thickness, align=(*center, Align.MIN))
-    with BuildPart() as hole, Locations(plane.offset(-1)):
-        Cylinder(v.rivet_diam / 2, thickness + 2, align=(*center, Align.MIN))
-    # Le bord gauche du volet descend à 45° vers la droite, depuis le point le plus bas du
-    # disque : on retire ce qui dépasse la droite x + z = -rayon, hors du plan de la face
-    reach = v.base_size
-    below = (0, -radius), (reach, -radius - reach), (0, -radius - reach)
-    with BuildPart() as cut:
-        with BuildSketch(Plane.XZ.offset(thickness / 2)):
-            Polygon(*below, align=None)
-        # Jusqu'à la face avant du volet seulement, pour épargner le rabat qui le recouvre
-        extrude(amount=u.cover_offset - thickness / 2)
-    # Les dents ne touchent que le disque, hors du volet : creusées avant la fusion
-    # Tout est construit replié à 180°, puis pivoté avec le volet
-    disc_part = unfold_cover(disc.part - cover_teeth())
-    cover = Compound(body - unfold_cover(cut.part) + disc_part - unfold_cover(hole.part))
-    # Congé de l'angle entre la pente et le bas du volet ; l'arc du disque reste vif
-    y = -(2 * v.bend_radius + thickness / 2)
-    corner = unfold_cover(Vertex(v.base_size / 2 - radius, y, -v.base_size / 2))
-    edge = cover.edges().sort_by_distance(corner)[0]
-    return Compound([cover.fillet(v.fillet, [edge])])
-
-
-def wrap_slots(plane: Plane) -> Part:
-    """Construit la matière à retirer du rabat pour y faire ses 4 fentes, bouts arrondis."""
-    half = v.base_size / 2
-    side_margin, bottom_margin = v.base_wrap_slot_margin
-    # Fentes verticales à `side_margin` des deux côtés du rabat, tranche et bout, et à
-    # `bottom_margin` de son bas
-    sides = half - side_margin, half - v.base_wrap_length + side_margin
-    middle = -half + bottom_margin + v.base_wrap_slot_v_length / 2
-    drops = [-v.base_wrap_slot_drop - i * v.base_wrap_slot_step for i in range(2)]
-    with BuildPart() as builder:
-        with BuildSketch(plane):
-            with Locations(*[(0, y) for y in drops]):
-                SlotOverall(v.base_wrap_slot_h_length, v.base_wrap_slot_width)
-            with Locations(*[(x, middle) for x in sides]):
-                SlotOverall(v.base_wrap_slot_v_length, v.base_wrap_slot_width, rotation=90)
-        extrude(amount=v.material_thickness + 1)
-    return builder.part
-
-
-def add_wrap_disc(body: Compound) -> Compound:
-    """Ajoute au rabat le disque des cadrans, centré sur le rivet, et perce ses trous."""
-    thickness = v.material_thickness
-    # Le rabat est replié contre la face avant du volet
-    plane = Plane.XZ.offset(u.cover_offset + u.wrap_clearance)
-    center = Align.CENTER, Align.CENTER
-    with BuildPart() as disc, Locations(plane):
-        Cylinder(u.disc_radius, thickness, align=(*center, Align.MIN))
-    # Le trou part de la face avant du volet, qu'il ne touche pas, et sort du rabat
-    with BuildPart() as hole, Locations(plane.offset(-u.wrap_clearance / 2)):
-        Cylinder(v.rivet_head_hole / 2, thickness + 1, align=(*center, Align.MIN))
-    # Tout est construit replié, puis pivoté avec le rabat
-    cutters = hole.part + wrap_slots(plane.offset(-u.wrap_clearance / 2))
-    return Compound(body + unfold_wrap(disc.part) - unfold_wrap(cutters))
+    return teeth + outside
 
 
 def view_tip() -> Sketch:
@@ -444,16 +416,24 @@ def strip_fit(edge: Edge, x: float, width: float) -> tuple[float, float]:
     return (low, high) if start < end else (high, low)
 
 
-def strip_neck(spacing: float, x: float, edge_y: float, width: float) -> Part:
-    """Construit la tête de la languette, jusqu'à l'extérieur du panneau arrière."""
-    thickness, radius = v.material_thickness, v.bend_radius
-    start = radius + thickness
-    length = 2 * (radius + thickness) + spacing - start
-    width = width - 2 * v.base_strip_stop - 2 * v.base_strip_clearance
-    z = edge_y + radius + thickness / 2
-    with BuildPart() as builder, Locations((x, start + length / 2, z)):
-        Box(width, length, thickness)
-    return builder.part
+def shape_strip_head(sheet: BuildSheet, x: float, wall_z: float, width: float) -> None:
+    """Taille le bout de la languette en tête étroite, qui traverse le panneau arrière."""
+    thickness = v.material_thickness
+    head = width - 2 * v.base_strip_stop - 2 * v.base_strip_clearance
+    # La base vient en butée sur la face avant du panneau arrière, la tête la traverse
+    back_front = (len(v.dials) + 1) * thickness
+    mid = Plane(
+        (x, wall_z, -(back_front + thickness / 2)),
+        x_dir=(1, 0, 0),
+        z_dir=(0, 1, 0),
+    )
+    inner, outer = head / 2, width / 2 + 1
+    # Dans le plan de la languette : x depuis son centre, y depuis la face du panneau
+    with BuildSketch(mode=Mode.PRIVATE) as shoulders:
+        for sign in (-1, 1):
+            with Locations((sign * (inner + outer) / 2, thickness / 2)):
+                Rectangle(outer - inner, 2 * thickness)
+    u.sketch_on(sheet, mid, shoulders.sketch, Mode.SUBTRACT)
 
 
 def base() -> Part:
@@ -461,7 +441,6 @@ def base() -> Part:
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = len(v.dials) * v.material_thickness - 2 * radius
-    necks = []
 
     with BuildPart() as builder:
         with BuildSheet(Plane.XZ, thickness=thickness, bend_radius=radius) as sheet:
@@ -519,11 +498,14 @@ def base() -> Part:
                 # Sa base vient en butée contre le panneau arrière, sa tête traverse la
                 # fenêtre de la tôle arrière, qui retient la base de la languette.
                 edge = sheet.rims().filter_by(Axis.X).sort_by_distance((x, edge_y, 0))[0]
-                flange(edge, radius + spacing, -90, gaps=strip_fit(edge, x, width))
-                necks.append((x, edge_y, width))
+                # Elle se prolonge d'une épaisseur, pour traverser la fenêtre du panneau
+                # arrière, sans que son bout soit dans le plan de la face arrière
+                length = radius + spacing + thickness - u.min_gap
+                flange(edge, length, -90, gaps=strip_fit(edge, x, width))
 
                 back_z = sheet.flats().sort_by(Face.area)[-1].center().Z
                 wall_z = edge_y + radius + thickness / 2
+                shape_strip_head(sheet, x, wall_z, width)
                 with Locations((x, wall_z, back_z)):
                     window = (
                         width - 2 * v.base_strip_stop,
@@ -534,10 +516,7 @@ def base() -> Part:
             fold_sides(sheet)
         thicken()
 
-    # Têtes de languettes gardées séparées : fusionnées, elles combleraient la fenêtre
-    # du panneau arrière quand le jeu est nul, et son contour disparaîtrait.
-    body = add_wrap_disc(add_cover_disc(builder.part - support_trim()))
-    part = Part([body, *(strip_neck(spacing, *neck) - body for neck in necks)])
+    part = builder.part
     part.label = v.base[0]
     part.color = Color(v.base[1])
     return part

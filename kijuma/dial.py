@@ -110,7 +110,7 @@ def flap_teeth_points(start: float, end: float, depth: float) -> list[tuple[floa
     return [*points, (count / 2 * step, 0), (reach_end, tooth), (edge, tooth)]
 
 
-def flap_teeth(start: float, end: float, depth: float) -> Part | None:
+def flap_teeth(start: float, end: float, depth: float) -> Sketch | None:
     """Construit la matière à retirer du bout de la languette pour y faire des dents."""
     points = flap_teeth_points(start, end, depth)
     if not points:
@@ -128,18 +128,13 @@ def flap_teeth(start: float, end: float, depth: float) -> Part | None:
 
     zigzag = [place(tooth, across) for across, tooth in points]
     outline = zigzag + [place(-1, across) for across, _ in reversed(points)]
-    # Le bout rabattu est la tôle la plus éloignée du cadran : on ne coupe que là
-    thickness = v.material_thickness
-    top = depth + thickness + v.bend_radius - 0.5
-    with BuildPart() as builder:
-        with BuildSketch(Plane.XZ.offset(top)):
-            Polygon(*outline, align=None)
-        extrude(amount=thickness + 1)
-    return builder.part
+    with BuildSketch(mode=Mode.PRIVATE) as sketch:
+        Polygon(*outline, align=None)
+    return sketch.sketch_local
 
 
-def flap_clip(start: float, end: float) -> Part:
-    """Construit le volume à retirer sous le cadran, hors du secteur de la languette."""
+def flap_clip(start: float, end: float) -> Sketch:
+    """Construit la matière à retirer du bout de la languette, hors du secteur."""
     # Les côtés du secteur sont radiaux : les bouts rabattus de deux languettes voisines,
     # qui convergent vers le centre, se touchent ainsi sur toute leur longueur.
     size = v.dial_diam
@@ -147,14 +142,21 @@ def flap_clip(start: float, end: float) -> Part:
         (size * cos(radians(a)), size * sin(radians(a)))
         for a in (start, (start + end) / 2, end)
     ]
-    with BuildPart() as builder:
-        # Sous la tôle du cadran (de 0 à -épaisseur), là où il n'y a que la languette
-        with Locations((0, -v.material_thickness - size / 2, 0)):
-            Box(2 * size, size, 2 * size)
-        with BuildSketch(Plane.XZ):
-            Polygon(*points, align=None)
-        extrude(amount=size * 2, mode=Mode.SUBTRACT)
-    return builder.part
+    with BuildSketch(mode=Mode.PRIVATE) as sketch:
+        Rectangle(4 * size, 4 * size)
+        Polygon(*points, align=None, mode=Mode.SUBTRACT)
+    return sketch.sketch_local
+
+
+def trim_flap(sheet: BuildSheet, start: float, end: float, depth: float) -> None:
+    """Taille le bout rabattu de la languette en trapèze, et y fait les dents."""
+    # Le bout rabattu est la face de la tôle la plus éloignée du disque, et parallèle à lui
+    tip = max(sheet.flats(), key=lambda f: abs(f.center().Z))
+    mid = Plane((0, 0, tip.center().Z), x_dir=(1, 0, 0), z_dir=(0, 0, 1))
+    u.sketch_on(sheet, mid, flap_clip(start, end), Mode.SUBTRACT)
+    teeth = flap_teeth(start, end, depth)
+    if teeth is not None:
+        u.sketch_on(sheet, mid, teeth, Mode.SUBTRACT)
 
 
 def rounded_corners(
@@ -187,7 +189,7 @@ def dial_sheet(
     flap_extra: float = 0,
 ) -> tuple[Part, BuildSheet]:
     """
-    Construit la tôle du cadran, côté +Y et avant le taillage du bout de la languette.
+    Construit la tôle du cadran, côté +Y et .
 
     Retourne la pièce épaissie et la tôle de référence, que l'on peut déplier.
     """
@@ -236,6 +238,7 @@ def dial_sheet(
                 .sort_by_distance((hinge * cos(mid), hinge * sin(mid), 0))[0]
             )
             fold_flap(sheet, edge, depth)
+            trim_flap(sheet, flap_start, slot_length, depth)
         thicken()
     return builder.part, sheet
 
@@ -251,15 +254,10 @@ def dial(tab_angle: int, slot_extra: float = 0, flap_extra: float = 0) -> Part:
     languette pour compenser l'épaisseur des cadrans placés devant, de sorte que ce
     second pli soit au même niveau pour tous les cadrans.
     """
-    flap_start, slot_length = flap_angles(slot_extra)
     sheet_part, _ = dial_sheet(tab_angle, slot_extra, flap_extra)
 
     # La tôle est construite côté +Y : on la retourne pour que la languette soit à l'avant
-    # Le bout rabattu est ensuite taillé en trapèze, selon les côtés radiaux du secteur
-    part = Part(sheet_part.mirror(Plane.XZ) - flap_clip(flap_start, slot_length))
-    teeth = flap_teeth(flap_start, slot_length, v.dial_flap_depth + flap_extra)
-    if teeth is not None:
-        part = Part(part - teeth)
+    part = Part(sheet_part.mirror(Plane.XZ))
     part.label = "Dial"
     part.color = Color(0, 0.5, 0.5)
     return part

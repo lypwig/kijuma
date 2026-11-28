@@ -176,7 +176,7 @@ def test_cover_unfolds_to_its_angle(open_cover: Solid) -> None:
 def wrap_outer_y() -> float:
     """Retourne l'ordonnée de la face avant du rabat, replié devant le volet."""
     # Le rabat est contre la face avant du volet, à un jeu symbolique près
-    return -(u.cover_offset + u.wrap_clearance + v.material_thickness)
+    return -(u.cover_offset + u.min_gap + v.material_thickness)
 
 
 def test_wrap_is_folded_over_cover(body: Solid) -> None:
@@ -333,7 +333,7 @@ def test_cover_has_one_rounded_corner(body: Solid) -> None:
         e
         for e in body.edges()
         if e.geom_type == GeomType.CIRCLE
-        and pytest.approx(outer_y, abs=u.wrap_clearance / 2) == e.center().Y
+        and pytest.approx(outer_y, abs=u.min_gap / 2) == e.center().Y
         and pytest.approx(v.fillet, abs=TOLERANCE) == e.radius
         and v.fillet**2 < e.arc_center.X**2 + e.arc_center.Z**2
     ]

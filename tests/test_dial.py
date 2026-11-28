@@ -6,7 +6,14 @@ import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.dial import dial, dial_sheet, flap_angles, flap_pocket, flap_teeth_points
+from kijuma.dial import (
+    dial,
+    dial_sheet,
+    flap_angles,
+    flap_pocket,
+    flap_teeth,
+    flap_teeth_points,
+)
 
 AREA_TOLERANCE = 1e-3  # mm²
 
@@ -47,7 +54,12 @@ def test_pocket_is_covered_by_flap(index: int) -> None:
     _, flap, pocket, origin = flat_pattern(index)
     footprint = pocket.face().moved(Location(origin))
     covered = sum((footprint & f).area for f in flap)
-    assert footprint.area - covered < AREA_TOLERANCE
+    # Seules les dents, taillées dans le bout de la languette, ne recouvrent pas le vide
+    extra = (len(v.dials) - 1 - index) * v.material_thickness
+    start, end = flap_angles(index * v.dial_slot_step)
+    teeth = flap_teeth(start, end, v.dial_flap_depth + extra)
+    teeth_area = teeth.area if teeth is not None else 0
+    assert footprint.area - covered < teeth_area + AREA_TOLERANCE
 
 
 TOLERANCE = 0.01  # mm
