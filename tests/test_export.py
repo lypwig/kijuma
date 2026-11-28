@@ -48,11 +48,11 @@ def test_pieces_stay_within_margins(placements: list[Placement]) -> None:
 
 
 def test_svg_has_cuts_and_folds(placements: list[Placement], tmp_path: Path) -> None:
-    """Le SVG a un calque de découpe, un de pliage, et un contour de feuille."""
+    """Le SVG a un calque de découpe, un de pliage, et un cadre."""
     path = tmp_path / "kijuma.svg"
     export_svg(placements, str(path))
     root = ET.parse(path).getroot()  # noqa: S314
     layers = {g.get("id"): list(g) for g in root.iter("{http://www.w3.org/2000/svg}g")}
-    assert set(layers) >= {"Feuille", "Decoupe", "Pliage"}
+    assert set(layers) >= {"Cadre", "Decoupe", "Pliage"}
     assert layers["Decoupe"]
     assert layers["Pliage"]

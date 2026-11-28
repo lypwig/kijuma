@@ -100,9 +100,14 @@ rivet_head_hole = rivet_head[0] + 1  # diamètre du trou du rabat, pour la tête
 
 # --- Feuille de carton ---
 export_sheet = (1000, 700)  # longueur et largeur de la feuille de carton, en mm
-export_margin = 5  # marge entre les pièces et le bord de la feuille
+export_margin = 5  # marge entre les pièces et le bord de la feuille, et autour du cadre
 export_gap = 4  # écart minimal entre deux pièces
 
 # --- Rangement ---
 export_rotation_step = 15  # pas des rotations essayées pour ranger chaque pièce, en degrés
 export_resolution = 1  # taille des pixels de la grille de rangement, en mm
+
+# --- Lignes du SVG : épaisseur (mm), couleur et type de trait (nom d'un `LineType`) ---
+export_cut_line = 0.2, "red", "CONTINUOUS"  # découpe
+export_fold_line = 0.2, "blue", "ISO_DASH"  # pliage
+export_frame_line = 0.3, "gray", "CONTINUOUS"  # cadre autour des découpes
