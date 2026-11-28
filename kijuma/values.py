@@ -95,3 +95,14 @@ rivet_diam = 5  # diamètre de la tige du rivet, et des trous qui la reçoivent
 rivet_length = (3 + len(dials)) * material_thickness + 2 * bend_radius + 1
 rivet_head = 8, 1  # diamètre et épaisseur de la tête du rivet
 rivet_head_hole = rivet_head[0] + 1  # diamètre du trou du rabat, pour la tête du rivet
+
+# === Export SVG ===
+
+# --- Feuille de carton ---
+export_sheet = (1000, 700)  # longueur et largeur de la feuille de carton, en mm
+export_margin = 5  # marge entre les pièces et le bord de la feuille
+export_gap = 4  # écart minimal entre deux pièces
+
+# --- Rangement ---
+export_rotation_step = 15  # pas des rotations essayées pour ranger chaque pièce, en degrés
+export_resolution = 1  # taille des pixels de la grille de rangement, en mm

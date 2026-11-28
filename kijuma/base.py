@@ -436,8 +436,12 @@ def shape_strip_head(sheet: BuildSheet, x: float, wall_z: float, width: float) -
     u.sketch_on(sheet, mid, shoulders.sketch, Mode.SUBTRACT)
 
 
-def base() -> Part:
-    """Construit la pièce correspondant au socle."""
+def base_sheet() -> tuple[Part, BuildSheet]:
+    """
+    Construit la tôle du socle.
+
+    Retourne la pièce épaissie et la tôle de référence, que l'on peut déplier.
+    """
     thickness, radius = v.material_thickness, v.bend_radius
     # Longueur plane ajoutée entre les deux pliages, pour écarter les deux panneaux
     spacing = len(v.dials) * v.material_thickness - 2 * radius
@@ -516,7 +520,12 @@ def base() -> Part:
             fold_sides(sheet)
         thicken()
 
-    part = builder.part
+    return builder.part, sheet
+
+
+def base() -> Part:
+    """Construit la pièce correspondant au socle."""
+    part, _ = base_sheet()
     part.label = v.base[0]
     part.color = Color(v.base[1])
     return part

@@ -24,6 +24,14 @@ Pour lancer les tests (non-intersection des pièces, tôle dépliée sans superp
 
     nix-shell --run tester
 
+## Export pour la découpe
+
+Pour exporter en SVG tous les patrons à plat en minimisant la longueur utilisée (découpe en rouge, pliages en bleu) :
+
+    uv run python -m kijuma.export export/kijuma.svg
+
+Voir la section "Export SVG" dans `kijuma/values.py` pour paramétrer l'export (dimensions de la feuille, écart entre pièces, etc).
+
 ## Paternité
 
 Auteur: Nathanaël Jourdane
