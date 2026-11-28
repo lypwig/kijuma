@@ -8,7 +8,8 @@ import pytest
 from build123d import *
 
 from kijuma import values as v
-from kijuma.export import Placement, export_svg, flat_pieces, nest
+from kijuma.export import export_svg, flat_pieces
+from kijuma.nest import Placement, nest
 
 ROTATION_STEP = 90  # pas grossier, pour que le test reste rapide
 
@@ -21,7 +22,7 @@ def placements() -> list[Placement]:
 
 def placed_outlines(placements: list[Placement]) -> list[Face]:
     """Retourne les contours de découpe, à leur place sur la feuille."""
-    return [p.piece.moved(Location((*p.position, 0))).outline for p in placements]
+    return [p.placed().outline for p in placements]
 
 
 def test_every_piece_is_placed(placements: list[Placement]) -> None:
