@@ -9,7 +9,14 @@ from build123d import *
 
 from kijuma import values as v
 from kijuma.dial import dial_sheet
-from kijuma.export import export_svg, flat_piece, flat_pieces, label_placement
+from kijuma.export import (
+    PAPER_FILE,
+    export_svg,
+    flat_piece,
+    flat_pieces,
+    label_placement,
+    main,
+)
 from kijuma.nest import Placement, nest
 
 ROTATION_STEP = 90  # pas grossier, pour que le test reste rapide
@@ -79,3 +86,10 @@ def test_label_svg_has_outline_and_text(tmp_path: Path) -> None:
     layers = {g.get("id"): list(g) for g in root.iter("{http://www.w3.org/2000/svg}g")}
     assert len(layers["Decoupe"]) == 1
     assert layers["Gravure"]
+
+
+def test_main_paper_only(tmp_path: Path) -> None:
+    """Avec `--paper`, seul le SVG du papier est écrit, dans le dossier créé au besoin."""
+    folder = tmp_path / "sortie"
+    main([str(folder), "--paper"])
+    assert [f.name for f in folder.iterdir()] == [PAPER_FILE]

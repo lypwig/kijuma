@@ -1,7 +1,7 @@
 """Exporte en SVG les patrons à plat de toutes les pièces, rangés sur une feuille."""
 
+import argparse
 import logging
-import sys
 from pathlib import Path
 
 from build123d import *
@@ -14,6 +14,9 @@ from .label import label_outline, label_text
 from .nest import Piece, Placement, nest
 
 logger = logging.getLogger(__name__)
+
+CARDBOARD_FILE = "carton.svg"
+PAPER_FILE = "papier.svg"
 
 PARALLEL = 0.999  # cosinus minimal entre deux directions considérées parallèles
 TOLERANCE = 1e-3  # distance en dessous de laquelle deux points sont confondus, en mm
@@ -133,20 +136,45 @@ def setup_logging() -> None:
     package.setLevel(logging.INFO)
 
 
-def main(path: str = "kijuma.svg") -> None:
-    """Range tous les patrons sur la feuille et les écrit dans le fichier SVG."""
-    setup_logging()
+def export_cardboard(path: Path) -> None:
+    """Range les patrons du socle et des cadrans sur la feuille de carton, et les écrit."""
     placements = nest(flat_pieces())
     logger.info("Écriture de %s", path)
-    export_svg(placements, path)
-    paper = Path(path).with_stem(f"{Path(path).stem}-papier")
-    logger.info("Écriture de %s", paper)
-    export_svg([label_placement()], str(paper))
+    export_svg(placements, str(path))
     used = max(p.placed().outline.bounding_box().max.X for p in placements)
     area = sum(p.piece.outline.area for p in placements)
     logger.info("%d pièces, longueur utilisée %.0f mm", len(placements), used)
     logger.info("Taux d'utilisation : %.0f %%", 100 * area / (used * v.export_sheet[1]))
 
 
+def export_paper(path: Path) -> None:
+    """Écrit le label en papier fin."""
+    logger.info("Écriture de %s", path)
+    export_svg([label_placement()], str(path))
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Écrit les SVG du carton et du papier, dans le dossier donné en paramètre."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "folder",
+        nargs="?",
+        default="export",
+        type=Path,
+        help="dossier de sortie",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--cardboard", action="store_true", help="n'exporter que le carton")
+    group.add_argument("--paper", action="store_true", help="n'exporter que le papier")
+    args = parser.parse_args(argv)
+
+    setup_logging()
+    args.folder.mkdir(parents=True, exist_ok=True)
+    if not args.paper:
+        export_cardboard(args.folder / CARDBOARD_FILE)
+    if not args.cardboard:
+        export_paper(args.folder / PAPER_FILE)
+
+
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    main()

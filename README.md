@@ -32,7 +32,9 @@ Lancer les tests (non-intersection des pièces, tôle dépliée sans superpositi
 
 Exporter en SVG pour la découpe :
 
-    uv run python -m kijuma.export export/kijuma.svg
+    uv run python -m kijuma.export [dossier] [--cardboard | --paper]
+
+Le dossier de sortie (`export` par défaut) reçoit `carton.svg` et `papier.svg` (`--cardboard` n'exporte que le carton, `--paper` que le papier).
 
 Voir la section "Export SVG" dans `kijuma/values.py` pour paramétrer l'export (dimensions de la feuille, écart entre pièces, couleurs des lignes, etc).
 
